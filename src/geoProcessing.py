@@ -43,7 +43,7 @@ class geoProcessing:
             out = out[0]['geometry']['location']
         return out
 
-    def isValidGeocode(self, lat, lng):
+    def isValidGeocode(self, lat, lng, verbose=False):
         """Function is true if this lat-lng pair corresponds to a valid address
         Args:
             lat, lng : float
@@ -57,6 +57,8 @@ class geoProcessing:
         if len(out) == 0:
             return(False)
         else:
+            if verbose:
+                print("Address: " + out[0]['formatted_address'])
             return(True)
 
     def getTravelTime(self, origin, destination, mode = "transit", departureTime = dt.datetime.now(), **kwargs):

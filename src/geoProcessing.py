@@ -19,7 +19,7 @@ class geoProcessing:
     Connects to the googlemaps API
     """
     
-    def __init__(self, configFile):
+    def __init__(self, configFile = "config/config.yaml"):
         ## read the config
         with open(configFile, "r") as f:
             self.cfg = yaml.load(f)
@@ -30,8 +30,6 @@ class geoProcessing:
         """Function turns an address into geocoordinates
         Args:
             address (str): free text address
-            googleClient (googlemaps.Client): googlemaps client as returned by 
-            googlemaps.Client
         Returns:
             dict: with two numeric entries: 'lat' and 'lng' for latitude 
               and longitude based on the first ocation match. If no location
@@ -40,9 +38,10 @@ class geoProcessing:
         
         out = self.gmapClient.geocode(address)
         if len(out) == 0:
-            return(dict())
+            out = dict()
         else:
-            return(out[0]['geometry']['location'])
+            out = out[0]['geometry']['location']
+        return out
         
     def getTravelTime(self, origin, destination, mode = "transit", departureTime = dt.datetime.now(), **kwargs):
         """Function determines the travel time between origin and desitnation
@@ -68,6 +67,7 @@ class geoProcessing:
         out = self.gmapClient.distance_matrix(**kwargs)
         ## no route found
         if out['rows'][0]['elements'][0]['status'] != 'OK':
-            return(None)
+            out = None
         else:
-            return(out['rows'][0]['elements'][0]['duration']['value'])
+            out = out['rows'][0]['elements'][0]['duration']['value']
+        return out

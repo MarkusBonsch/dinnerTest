@@ -26,7 +26,7 @@ class geoProcessing:
         ## connect to the googlemaps API
         self.gmapClient = gm.Client(key = self.cfg['gmapsKey'])
        
-    def address2LonLat(self, address):
+    def address2LatLng(self, address):
         """Function turns an address into geocoordinates
         Args:
             address (str): free text address
@@ -42,7 +42,23 @@ class geoProcessing:
         else:
             out = out[0]['geometry']['location']
         return out
-        
+
+    def isValidGeocode(self, lat, lng):
+        """Function is true if this lat-lng pair corresponds to a valid address
+        Args:
+            lat, lng : float
+        Returns:
+            boolean
+        """
+
+        # convert lat and lng into list
+        latlng = [lat,lng]
+        out = self.gmapClient.reverse_geocode(latlng,location_type="ROOFTOP")
+        if len(out) == 0:
+            return(False)
+        else:
+            return(True)
+
     def getTravelTime(self, origin, destination, mode = "transit", departureTime = dt.datetime.now(), **kwargs):
         """Function determines the travel time between origin and desitnation
         Args:

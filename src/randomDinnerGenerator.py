@@ -13,6 +13,7 @@ class randomDinnerGenerator:
                  ,wishStarterProbability
                  ,wishMainCourseProbability
                  ,wishDessertProbability
+                 ,rescueTableProbability
                  ,meatIntolerantProbability
                  ,animalProductsIntolerantProbability
                  ,lactoseIntolerantProbability
@@ -34,6 +35,7 @@ class randomDinnerGenerator:
         self.wishStarterProbability              = wishStarterProbability
         self.wishMainCourseProbability           = wishMainCourseProbability
         self.wishDessertProbability              = wishDessertProbability
+        self.rescueTableProbability              = rescueTableProbability
         self.meatIntolerantProbability           = meatIntolerantProbability
         self.animalProductsIntolerantProbability = animalProductsIntolerantProbability
         self.lactoseIntolerantProbability        = lactoseIntolerantProbability
@@ -47,25 +49,31 @@ class randomDinnerGenerator:
 
     def generateDinner(self):
         dinner=list()
-        for t in xrange(1, self.numberOfTeams):
+        for t in xrange(1, self.numberOfTeams+1):
             if self.verbose: print("Generate team "+str(t)+":")
-            dinner.append(self.generateTeam())
+            team = self.generateTeam()
+            team['team'] = t
+            dinner.append(team)
             if self.verbose: print ""
         datapd = pd.DataFrame(dinner) 
-        datapd = datapd[['addressLat',
+        datapd = datapd[['team',
+                         'addressLat',
                          'addressLng',
                          'courseWish',
+                         'rescueTable',
                          'catFree',
                          'dogFree',
                          'catsIntolerant',
                          'dogsIntolerant',
-                         'meatIntolerant',
                          'animalProductsIntolerant',
+                         'lactoseIntolerant',
+                         'meatIntolerant',
                          'fishIntolerant',
-                         'seafoodIntolerant',
-                         'lactoseIntolerant']]
+                         'seafoodIntolerant']]
         if self.verbose: print datapd
-        return(datapd)
+        finalPartyLocation = pd.DataFrame([self.centerAddress])
+        full_result = [datapd,finalPartyLocation]
+        return(full_result)
 
     def generateTeam(self):
         team=dict(addressLat=1,addressLng=1,meatIntolerant=False)
@@ -78,16 +86,28 @@ class randomDinnerGenerator:
             team['courseWish'] = 2
         elif rd.random() < self.wishStarterProbability+self.wishMainCourseProbability+self.wishDessertProbability: 
             team['courseWish'] = 3
-        
+
+        team['rescueTable']       = int(rd.random() < self.rescueTableProbability)        
         team['meatIntolerant']    = int(rd.random() < self.meatIntolerantProbability)
         team['animalProductsIntolerant'] = int(rd.random() < self.animalProductsIntolerantProbability)
         team['lactoseIntolerant'] = int(rd.random() < self.lactoseIntolerantProbability)
         team['fishIntolerant']    = int(rd.random() < self.fishIntolerantProbability)
         team['seafoodIntolerant'] = int(rd.random() < self.seafoodIntolerantProbability)
-        team['dogsIntolerant']    = int(rd.random() < self.dogsIntolerantProbability)
         team['catsIntolerant']    = int(rd.random() < self.dogsIntolerantProbability)
-        team['dogFree']           = int(rd.random() < self.dogFreeProbability)
-        team['catFree']           = int(rd.random() < self.catFreeProbability)
+        team['dogsIntolerant']    = int(rd.random() < self.dogsIntolerantProbability)
+        team['catFree']           = int(rd.random() < self.catFreeProbability)    
+        team['dogFree']           = int(rd.random() < self.dogFreeProbability)    
+        # Make data consistent
+        if team['catsIntolerant'] == 1:
+            team['catFree'] = 1
+        if team['dogsIntolerant'] == 1:
+            team['dogFree'] = 1
+        if team['animalProductsIntolerant'] == 1:
+            team['meatIntolerant'] = 1
+            team['lactoseIntolerant'] = 1
+            team['fishIntolerant'] = 1
+            team['seafoodIntolerant'] = 1
+
         return(team)
 
     def createRandomAddress(self):

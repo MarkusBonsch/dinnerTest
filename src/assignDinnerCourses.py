@@ -117,61 +117,65 @@ class assignDinnerCourses:
             if not teamList : continue
             # Check if the offered table can fulfill the intolerance requirements - if yes -> Add these tables to the useableTables list
             if all( [(i >= j) for i, j in zip(offeredTable,intoleranceClass)] ):
-                print 'The following tables can be used: ' + str(teamList)
                 useableTables.extend(teamList)
-
         if self.verbose : print 'useableTables = ' + str(useableTables)    
+
         # 2.) Calculate a score for each table and each course - this is later used to make the decision which table to assign which course
         courseScoresPerTable = pd.DataFrame(columns=['table', 'starter', 'mainCourse', 'dessert'])
         for table in useableTables :
-            courseScoresPerTable = courseScoresPerTable.append(self.calculateScores(table,numOfNeededTablesPerCourse), ignore_index=True)
-        if self.verbose : 
-            print '\n' + 'scores = ' 
-            print courseScoresPerTable
+            df_aux = pd.DataFrame({'table' : [table], 'starter' : [0], 'mainCourse' : [0], 'dessert' : [0]})
+            courseScoresPerTable = courseScoresPerTable.append(df_aux, ignore_index=True)
+
+        courseScoresPerTable = self.updateCourseScores(courseScoresPerTable,numOfNeededTablesPerCourse)
 
         # 3.) Evaluate the scores : sort the score dataframe and pick up the first n entries for the course and then remove this table from the score list
-        courseScoresPerTable.sort_values(by=['dessert'])
-        for i in range(numOfNeededTablesPerCourse['dessert']) :
-            if courseScoresPerTable.shape[0] == 0 : break
-            listOfAssignedCourses['dessert'].append(courseScoresPerTable['table'].iloc[0])
-            courseScoresPerTable = courseScoresPerTable.drop(courseScoresPerTable.index[0])
+        # Get maximal value of dataframe table
+        while courseScoresPerTable.shape[0] > 0 :
+            if self.verbose :
+                print '\n' + 'scores = '
+                print courseScoresPerTable
+            indexOfMaximum  = courseScoresPerTable[['starter','mainCourse','dessert']].max(axis='columns').idxmax()
+            courseOfMaximum = courseScoresPerTable[['starter','mainCourse','dessert']].max(axis='index').idxmax()
+            tableOfMaximum  = courseScoresPerTable['table'].loc[indexOfMaximum]
+            listOfAssignedCourses[courseOfMaximum].append(tableOfMaximum)
+            courseScoresPerTable = courseScoresPerTable.loc[courseScoresPerTable['table']!=tableOfMaximum,:]
+            courseScoresPerTable.reset_index(drop=True , inplace=True)
+            numOfNeededTablesPerCourse[courseOfMaximum] -= 1;
+            courseScoresPerTable = self.updateCourseScores(courseScoresPerTable,numOfNeededTablesPerCourse)
 
-        courseScoresPerTable.sort_values(by=['starter'])
-        for i in range(numOfNeededTablesPerCourse['starter']) :
-            if courseScoresPerTable.shape[0] == 0 : break
-            listOfAssignedCourses['starter'].append(courseScoresPerTable['table'].iloc[0])
-            courseScoresPerTable = courseScoresPerTable.drop(courseScoresPerTable.index[0])
-
-        courseScoresPerTable.sort_values(by=['mainCourse'])
-        for i in range(numOfNeededTablesPerCourse['mainCourse']) :
-            if courseScoresPerTable.shape[0] == 0 : break
-            listOfAssignedCourses['mainCourse'].append(courseScoresPerTable['table'].iloc[0])
-            courseScoresPerTable = courseScoresPerTable.drop(courseScoresPerTable.index[0])
-            
         return(listOfAssignedCourses)            
 
     # ==============================================================================================================================
-    def calculateScores(self, table, numOfNeededTablesPerCourse) :
-        scores = pd.DataFrame({'table' : [table], 'starter' : [0], 'mainCourse' : [0], 'dessert' : [0]})
-        # Considere course wish of team
-        if self.courseWishOfTable(table) == 1 : wish = 'starter'
-        elif self.courseWishOfTable(table) == 2 : wish = 'mainCourse'
-        elif self.courseWishOfTable(table) == 3 : wish = 'dessert'
-        scores[wish] += 10
-        
-        # Consider how many tables are needed for this course (only relevant if score would be updated after each assignment)
-        scores['starter'] += numOfNeededTablesPerCourse['starter']*10
-        scores['mainCourse'] += numOfNeededTablesPerCourse['mainCourse']*10
-        scores['dessert'] += numOfNeededTablesPerCourse['dessert']*10
-        
-        # Reduce dessert score if table is to far away
-        geop = gp.geoProcessing('../config/config.yaml')
-        origin = geop.address2LatLng(self.finalPartyLocation)
-        destination={'lat':self.dinnerTable.loc[self.dinnerTable['team']==table,'addressLat'],'lng':self.dinnerTable.loc[self.dinnerTable['team']==table,'addressLng']}
-        travelTime = geop.getTravelTime(origin, destination, mode = "transit", departureTime = dt.datetime.now())
-        if travelTime != None : scores['dessert'] -= travelTime/60.
+    def updateCourseScores(self, df_scores , numOfNeededTablesPerCourse) :
 
-        return(scores)
+        # loop over table - iterrows and itertuples does not seem to have the desired functionality -> thus keep it simple
+        for i in range(df_scores.shape[0]):
+            # reset values to zero
+            df_scores.at[i , ['starter','mainCourse','dessert']] = 0
+            table = df_scores.loc[i]['table']
+
+            # Calculate scores for table
+            if self.courseWishOfTable(table) == 1 :
+                wish = 'starter'
+            elif self.courseWishOfTable(table) == 2 :
+                wish = 'mainCourse'
+            elif self.courseWishOfTable(table) == 3 :
+                wish = 'dessert'
+            df_scores.at[i , wish] += 100.0
+
+            # Consider how many tables are needed for this course
+            df_scores.at[i,'starter']    += -100 + numOfNeededTablesPerCourse['starter']*100.0
+            df_scores.at[i,'mainCourse'] += -100 + numOfNeededTablesPerCourse['mainCourse']*100.0
+            df_scores.at[i,'dessert']    += -100 + numOfNeededTablesPerCourse['dessert']*100.0
+
+        # Reduce dessert score if table is to far away
+        #geop = gp.geoProcessing('../config/config.yaml')
+        #origin = geop.address2LatLng(self.finalPartyLocation)
+        #destination={'lat':self.dinnerTable.loc[self.dinnerTable['team']==table,'addressLat'],'lng':self.dinnerTable.loc[self.dinnerTable['team']==table,'addressLng']}
+        #travelTime = geop.getTravelTime(origin, destination, mode = "transit", departureTime = dt.datetime.now())
+        #if travelTime != None : scores['dessert'] -= travelTime/60.
+
+        return(df_scores)
 
     # ==============================================================================================================================
     def updateAssignedCoursesTable(self, assignedTablesDict, assignedCoursesForTeams, intoleranceTeamList, intoleranceClass):

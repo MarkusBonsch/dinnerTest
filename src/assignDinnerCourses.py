@@ -1,9 +1,6 @@
 # Obvious things to improve : 
 # 1.) downgrading of intolerance groups can be improved (try not to loose too much information)
-# 2.) Evaluation of scores is implemented very much in favour for dessert -> that could be changed
 # 3.) No distance measure is introduced in the calculation of scores 
-# 4.) Scores could be updated after every course assignment
-# 5.) Course assignment should take overall score into account not separately for each course
 # 6.) Get rid of warnings
 # 7.) Output type could be pandas dataframe ...
 
@@ -71,7 +68,7 @@ class assignDinnerCourses:
                     if value: print str(key) + ' : ' + str(value)
 
             # 1.) Calculate number of needed tables (this includes taking into account already assigned tables from the last round)
-            nRequiredTables = self.getNumberOfRequiredTablesPerCourse(intoleranceClass,intoleranceTeamList,assignedCoursesForTeams) # how to do it FIXME
+            nRequiredTables = self.getNumberOfRequiredTablesPerCourse(intoleranceClass,intoleranceTeamList,assignedCoursesForTeams)
             if self.verbose : 
                 print ''
                 print "Required tables per course : " + str(nRequiredTables)
@@ -94,7 +91,7 @@ class assignDinnerCourses:
             # 6.) Downgrade intolerance group
             intoleranceClassesDict = self.downgradeIntoleranceGroup(intoleranceClass,intoleranceClassesDict)
 
-            if il==100:
+            if il==2:
                 print 'il = ' + str(il)
                 break 
             il=il+1
@@ -130,7 +127,7 @@ class assignDinnerCourses:
 
         courseScoresPerTable = self.updateCourseScores(courseScoresPerTable,numOfNeededTablesPerCourse)
 
-        # 3.) Evaluate the scores : sort the score dataframe and pick up the first n entries for the course and then remove this table from the score list
+        # 3.) Evaluate the scores
         # Get maximal value of dataframe table
         while courseScoresPerTable.shape[0] > 0 :
             if self.verbose :
@@ -172,7 +169,7 @@ class assignDinnerCourses:
             df_scores.at[i,'mainCourse'] += -100000*(neededTablesPerCourse['mainCourse']<=0) + neededTablesPerCourse['mainCourse']*100
             df_scores.at[i,'dessert']    += -100000*(neededTablesPerCourse['dessert']<=0)    + neededTablesPerCourse['dessert']*100
 
-        # Reduce dessert score if table is to far away
+        # Reduce dessert score if table is to far away to final dinner location
         #geop = gp.geoProcessing('../config/config.yaml')
         #origin = geop.address2LatLng(self.finalPartyLocation)
         #destination={'lat':self.dinnerTable.loc[self.dinnerTable['team']==table,'addressLat'],'lng':self.dinnerTable.loc[self.dinnerTable['team']==table,'addressLng']}
@@ -224,14 +221,6 @@ class assignDinnerCourses:
         print 'This intolerance group is downgraded to ' + str(downgradedIntoleranceGroup)
         intoleranceClassesDict[downgradedIntoleranceGroup].extend(teamsToDowngrade)
         return intoleranceClassesDict
-
-    # ==============================================================================================================================
-    def updateOfferedTables(self,alreadyAssignedTablesDict,offeredTablesDictDict):
-        for courseId, tableList1 in alreadyAssignedTablesDict.iteritems():
-            for intoleranceClass, tableList2 in offeredTablesDictDict.iteritems():
-                for table in tableList1 : 
-                    if table in tableList2 : tableList2.remove(table)
-        return(offeredTablesDictDict)
 
     # ==============================================================================================================================
     def courseWishOfTable(self,table) : 
@@ -291,43 +280,3 @@ class assignDinnerCourses:
         self.ListOfCourseToTableAssignment['starter'].extend(listOfAssignedCourses['starter'])
         self.ListOfCourseToTableAssignment['mainCourse'].extend(listOfAssignedCourses['mainCourse'])
         self.ListOfCourseToTableAssignment['dessert'].extend(listOfAssignedCourses['dessert'])
-
-    # ==============================================================================================================================
-    def getTablesForCourse(self,nTablesNeeded,teamList):
-        tableList = []
-        for x in teamList:
-            if courseId == 0:
-                tableList.append(x)
-                continue
-            if self.dinnerTable.loc[self.dinnerTable['team']==x,'courseWish'].item() == courseId:
-                tableList.append(x)
-        return(tableList)
-
-    # ==============================================================================================================================
-    def regroupOfferedTables(self,offeredTablesDict,intoleranceClassesDict,verbose):
-
-        for key, value in intoleranceClassesDict.iteritems():
-            if value:
-                intoleranceClass = key
-                break
-        if verbose: print 'intolerance group  : ' + str(intoleranceClass)
-            
-        for offeredTable, teamsOfferedTables in offeredTablesDict.iteritems():
-            if not teamsOfferedTables:
-                continue
-            if intoleranceClass < offeredTable :
-                if verbose: print 'intolerance group is less restrictive than offered table'
-                addZero = (0,)
-                newkey = offeredTable
-                if intoleranceClass[0] < offeredTable[0] or offeredTable[0] == 0 : 
-                    newkey = addZero + newkey[1:]
-                    addZero = (0,0)
-                    if intoleranceClass[1] < offeredTable[1] or offeredTable[1] == 0 : 
-                        newkey = addZero + newkey[2:]
-                        addZero = (0,0,0)
-                        if intoleranceClass[2] < offeredTable[2] or offeredTable[2] == 0 : 
-                            newkey = addZero + newkey[3:]
-                    offeredTablesDict[newkey].extend(offeredTablesDict[offeredTable])
-                    offeredTablesDict[offeredTable] = []
-
-        return(offeredTablesDict)

@@ -112,6 +112,8 @@ class assignDinnerCourses:
         listOfAssignedCourses = {'starter':[],'mainCourse':[],'dessert':[]}
         useableTables = []
 
+        if all(value == 0 for value in numOfNeededTablesPerCourse.values()) : return(listOfAssignedCourses)
+
         # 1.) make useableTable list with all offered tables that can serve the intolerance requirements
         for offeredTable, teamList in offeredTablesDict.iteritems():
             if not teamList : continue
@@ -137,16 +139,18 @@ class assignDinnerCourses:
             indexOfMaximum  = courseScoresPerTable[['starter','mainCourse','dessert']].max(axis='columns').idxmax()
             courseOfMaximum = courseScoresPerTable[['starter','mainCourse','dessert']].max(axis='index').idxmax()
             tableOfMaximum  = courseScoresPerTable['table'].loc[indexOfMaximum]
+            if self.verbose : print "Course " + str(courseOfMaximum) + " is assigned to table " + str(tableOfMaximum)
             listOfAssignedCourses[courseOfMaximum].append(tableOfMaximum)
             courseScoresPerTable = courseScoresPerTable.loc[courseScoresPerTable['table']!=tableOfMaximum,:]
             courseScoresPerTable.reset_index(drop=True , inplace=True)
             numOfNeededTablesPerCourse[courseOfMaximum] -= 1;
+            if all(value == 0 for value in numOfNeededTablesPerCourse.values()) : break
             courseScoresPerTable = self.updateCourseScores(courseScoresPerTable,numOfNeededTablesPerCourse)
 
-        return(listOfAssignedCourses)            
+        return(listOfAssignedCourses)
 
     # ==============================================================================================================================
-    def updateCourseScores(self, df_scores , numOfNeededTablesPerCourse) :
+    def updateCourseScores(self, df_scores , neededTablesPerCourse) :
 
         # loop over table - iterrows and itertuples does not seem to have the desired functionality -> thus keep it simple
         for i in range(df_scores.shape[0]):
@@ -161,12 +165,12 @@ class assignDinnerCourses:
                 wish = 'mainCourse'
             elif self.courseWishOfTable(table) == 3 :
                 wish = 'dessert'
-            df_scores.at[i , wish] += 100.0
+            df_scores.at[i , wish] += 200.0
 
-            # Consider how many tables are needed for this course
-            df_scores.at[i,'starter']    += -100 + numOfNeededTablesPerCourse['starter']*100.0
-            df_scores.at[i,'mainCourse'] += -100 + numOfNeededTablesPerCourse['mainCourse']*100.0
-            df_scores.at[i,'dessert']    += -100 + numOfNeededTablesPerCourse['dessert']*100.0
+            # Punish if no more tables are needed for a specific course
+            df_scores.at[i,'starter']    += -100000*(neededTablesPerCourse['starter']<=0)    + neededTablesPerCourse['starter']*100
+            df_scores.at[i,'mainCourse'] += -100000*(neededTablesPerCourse['mainCourse']<=0) + neededTablesPerCourse['mainCourse']*100
+            df_scores.at[i,'dessert']    += -100000*(neededTablesPerCourse['dessert']<=0)    + neededTablesPerCourse['dessert']*100
 
         # Reduce dessert score if table is to far away
         #geop = gp.geoProcessing('../config/config.yaml')

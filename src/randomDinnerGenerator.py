@@ -27,10 +27,10 @@ class randomDinnerGenerator:
         self.numberOfTeams = numberOfTeams
         self.centerAddress = centerAddress
         self.radiusInMeter = radiusInMeter
-        self.geop = gp.geoProcessing('../config/config.yaml')
+        self.geop = gp.geoProcessing()
         self.centerLatLng = self.geop.address2LatLng(self.centerAddress)
         if len(self.centerLatLng)==0:
-            Print("Center address not valid! Exit!")
+            print("Center address not valid! Exit!")
             sys.exit()
         self.wishStarterProbability              = wishStarterProbability
         self.wishMainCourseProbability           = wishMainCourseProbability

@@ -170,7 +170,7 @@ class assignDinnerCourses:
             df_scores.at[i,'dessert']    += -100000*(neededTablesPerCourse['dessert']<=0)    + neededTablesPerCourse['dessert']*100
 
         # Reduce dessert score if table is to far away to final dinner location
-        #geop = gp.geoProcessing('../config/config.yaml')
+        #geop = gp.geoProcessing()
         #origin = geop.address2LatLng(self.finalPartyLocation)
         #destination={'lat':self.dinnerTable.loc[self.dinnerTable['team']==table,'addressLat'],'lng':self.dinnerTable.loc[self.dinnerTable['team']==table,'addressLng']}
         #travelTime = geop.getTravelTime(origin, destination, mode = "transit", departureTime = dt.datetime.now())

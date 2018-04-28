@@ -11,6 +11,8 @@ Everything around the state: reward update, etc.
 import googlemaps as gm
 import datetime as dt
 import yaml
+import numpy as np
+import os
 
 
 class geoProcessing:
@@ -19,7 +21,9 @@ class geoProcessing:
     Connects to the googlemaps API
     """
     
-    def __init__(self, configFile = "config/config.yaml"):
+    def __init__(self, configFile = "default"):
+        if configFile == "default":
+            configFile = os.path.join(os.path.abspath(os.path.dirname(__file__)), "config/config.yaml")
         ## read the config
         with open(configFile, "r") as f:
             self.cfg = yaml.load(f)
@@ -85,7 +89,7 @@ class geoProcessing:
         out = self.gmapClient.distance_matrix(**kwargs)
         ## no route found
         if out['rows'][0]['elements'][0]['status'] != 'OK':
-            out = None
+            out = np.nan
         else:
             out = out['rows'][0]['elements'][0]['duration']['value']
         return out

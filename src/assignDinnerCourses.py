@@ -12,6 +12,7 @@ import collections as cl
 import math
 import numpy as np
 import datetime as dt
+import pdb
 
 class assignDinnerCourses:
     
@@ -24,6 +25,8 @@ class assignDinnerCourses:
 
     def assignDinnerCourses(self):
 
+        # Clear assignedCourses from last call
+        self.ListOfCourseToTableAssignment = {'starter':[], 'mainCourse':[], 'dessert':[]}
         # Print out the intolerances that are considered
         keyword='Intolerant'
         intolerances = [x for x in self.dinnerTable.keys() if keyword in x]
@@ -33,7 +36,7 @@ class assignDinnerCourses:
         # Identify intolerance classes and offered tables classes and teams belonging to them
         intoleranceClassesDict = self.identifyIntoleranceGroups()
         offeredTablesDict      = self.identifyOfferedTables()
-
+        
         if self.verbose:
             print 'Intolerance classes are'
             for key, value in intoleranceClassesDict.iteritems():
@@ -69,6 +72,7 @@ class assignDinnerCourses:
 
             # 1.) Calculate number of needed tables (this includes taking into account already assigned tables from the last round)
             nRequiredTables = self.getNumberOfRequiredTablesPerCourse(intoleranceClass,intoleranceTeamList,assignedCoursesForTeams)
+            nRequiredRescueTables = self.getNumberOfRequiredRescueTablesPerCourse()
             if self.verbose : 
                 print ''
                 print "Required tables per course : " + str(nRequiredTables)
@@ -76,7 +80,7 @@ class assignDinnerCourses:
 
             # 2.) Assign as many courses as possible for this intolerance group - break the loop and degrade intolerance group if no more offered tables are left that match the intolerance group 
             if self.verbose : print 'Assigning courses ...'
-            listOfAssignedCourses = self.assignCourse(intoleranceClass,offeredTablesDict,nRequiredTables)
+            listOfAssignedCourses = self.assignCourse(intoleranceClass,offeredTablesDict,nRequiredTables, nRequiredRescueTables)
             if self.verbose : print '\n' + 'listOfAssignedCourses = ' + str(listOfAssignedCourses)
 
             # 3.) Update offeredTablesDict -> remove assigned tables
@@ -91,20 +95,28 @@ class assignDinnerCourses:
             # 6.) Downgrade intolerance group
             intoleranceClassesDict = self.downgradeIntoleranceGroup(intoleranceClass,intoleranceClassesDict)
 
-            if il==2:
+            if il==float("inf"):
                 print 'il = ' + str(il)
                 break 
             il=il+1
-
+        
         print ''
         print '%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%'
         print 'FINAL RESULT'
         print self.ListOfCourseToTableAssignment
         print '%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%'
+        ## update the dinnerTable with the assigned courses
+        courseTable = {'team': [], 'assignedCourse' : []}
+        courseIds = {'starter': 1, 'mainCourse': 2, 'dessert': 3}
+        for key, value in self.ListOfCourseToTableAssignment.iteritems():
+            courseTable['team'].extend(value)
+            courseTable['assignedCourse'].extend([courseIds[key]]*len(value))
+        courseTable = pd.DataFrame(courseTable)
+        self.dinnerTable = self.dinnerTable.merge(courseTable, on = 'team', how = 'left', validate = "1:1")
         return(self.ListOfCourseToTableAssignment) 
 
     # ==============================================================================================================================
-    def assignCourse(self,intoleranceClass,offeredTablesDict,numOfNeededTablesPerCourse):
+    def assignCourse(self,intoleranceClass,offeredTablesDict,numOfNeededTablesPerCourse, numOfNeededRescueTablesPerCourse):
 
         listOfAssignedCourses = {'starter':[],'mainCourse':[],'dessert':[]}
         useableTables = []
@@ -125,7 +137,7 @@ class assignDinnerCourses:
             df_aux = pd.DataFrame({'table' : [table], 'starter' : [0], 'mainCourse' : [0], 'dessert' : [0]})
             courseScoresPerTable = courseScoresPerTable.append(df_aux, ignore_index=True)
 
-        courseScoresPerTable = self.updateCourseScores(courseScoresPerTable,numOfNeededTablesPerCourse)
+        courseScoresPerTable = self.updateCourseScores(courseScoresPerTable,numOfNeededTablesPerCourse, numOfNeededRescueTablesPerCourse)
 
         # 3.) Evaluate the scores
         # Get maximal value of dataframe table
@@ -141,13 +153,14 @@ class assignDinnerCourses:
             courseScoresPerTable = courseScoresPerTable.loc[courseScoresPerTable['table']!=tableOfMaximum,:]
             courseScoresPerTable.reset_index(drop=True , inplace=True)
             numOfNeededTablesPerCourse[courseOfMaximum] -= 1;
+            numOfNeededRescueTablesPerCourse[courseOfMaximum] -= 1;
             if all(value == 0 for value in numOfNeededTablesPerCourse.values()) : break
-            courseScoresPerTable = self.updateCourseScores(courseScoresPerTable,numOfNeededTablesPerCourse)
+            courseScoresPerTable = self.updateCourseScores(courseScoresPerTable,numOfNeededTablesPerCourse, numOfNeededRescueTablesPerCourse)
 
         return(listOfAssignedCourses)
 
     # ==============================================================================================================================
-    def updateCourseScores(self, df_scores , neededTablesPerCourse) :
+    def updateCourseScores(self, df_scores , neededTablesPerCourse, neededRescueTablesPerCourse) :
 
         # loop over table - iterrows and itertuples does not seem to have the desired functionality -> thus keep it simple
         for i in range(df_scores.shape[0]):
@@ -162,13 +175,18 @@ class assignDinnerCourses:
                 wish = 'mainCourse'
             elif self.courseWishOfTable(table) == 3 :
                 wish = 'dessert'
-            df_scores.at[i , wish] += 200.0
+            df_scores.at[i , wish] += 199.0
 
             # Punish if no more tables are needed for a specific course
             df_scores.at[i,'starter']    += -100000*(neededTablesPerCourse['starter']<=0)    + neededTablesPerCourse['starter']*100
             df_scores.at[i,'mainCourse'] += -100000*(neededTablesPerCourse['mainCourse']<=0) + neededTablesPerCourse['mainCourse']*100
             df_scores.at[i,'dessert']    += -100000*(neededTablesPerCourse['dessert']<=0)    + neededTablesPerCourse['dessert']*100
 
+            # add reward for good rescue table distribution
+            df_scores.at[i, 'starter']    += neededRescueTablesPerCourse['starter']    * self.isRescueTable(table) * 50
+            df_scores.at[i, 'mainCourse'] += neededRescueTablesPerCourse['mainCourse'] * self.isRescueTable(table) * 50
+            df_scores.at[i, 'dessert']    += neededRescueTablesPerCourse['dessert']    * self.isRescueTable(table) * 50
+            
         # Reduce dessert score if table is to far away to final dinner location
         #geop = gp.geoProcessing()
         #origin = geop.address2LatLng(self.finalPartyLocation)
@@ -196,12 +214,27 @@ class assignDinnerCourses:
 
         for index, row in assignedCoursesForTeams.iterrows():
             for teamsAlreadyAssigned in row["teamList"] : 
-                if teamsAlreadyAssigned in teamList :
+                if teamsAlreadyAssigned in teamList : #FIXME: why does this work?
                     n_starter -= row['starter']
                     n_mainCourse -= row['mainCourse']
                     n_dessert -= row['dessert']
                     break
         nRequiredTables = {'starter':n_starter,'mainCourse':n_mainCourse,'dessert':n_dessert}
+        return( nRequiredTables )
+        
+    # ======================================================================================================================================================================
+    def getNumberOfRequiredRescueTablesPerCourse(self):
+        nRescueTotal = self.dinnerTable.loc[:, 'rescueTable'].sum()
+        n_starter    = nRescueTotal / 3.0
+        n_mainCourse = nRescueTotal / 3.0
+        n_dessert    = nRescueTotal / 3.0
+        nRequiredTables = {'starter':n_starter,'mainCourse':n_mainCourse,'dessert':n_dessert}
+        
+        if self.verbose: print 'Number of required rescue tables: '
+        for course in ['starter', 'mainCourse', 'dessert']:
+            nRequiredTables[course] -= self.dinnerTable.loc[self.dinnerTable['team'].isin(self.ListOfCourseToTableAssignment[course]), 'rescueTable'].sum()
+            if self.verbose: print str(course) + ' = ' + str(nRequiredTables[course])
+        
         return( nRequiredTables )
 
     # ==============================================================================================================================
@@ -223,9 +256,23 @@ class assignDinnerCourses:
         return intoleranceClassesDict
 
     # ==============================================================================================================================
+    def updateOfferedTables(self,alreadyAssignedTablesDict,offeredTablesDictDict):
+        for courseId, tableList1 in alreadyAssignedTablesDict.iteritems():
+            for intoleranceClass, tableList2 in offeredTablesDictDict.iteritems():
+                for table in tableList1 : 
+                    if table in tableList2 : tableList2.remove(table)
+        return(offeredTablesDictDict)
+
+    # ==============================================================================================================================
     def courseWishOfTable(self,table) : 
         courseWish = self.dinnerTable.loc[self.dinnerTable['team']==table,'courseWish'].item()
         return courseWish
+    
+    # ==============================================================================================================================
+    def isRescueTable(self,table) : 
+        rescueTable = self.dinnerTable.loc[self.dinnerTable['team']==table,'rescueTable'].item()
+        return rescueTable
+
     # ======================================================================================================================================================================
     def identifyIntoleranceGroups(self):
 

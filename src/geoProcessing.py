@@ -5,7 +5,7 @@ Created on Tue Mar 27 17:51:36 2018
 
 @author: markus
 
-Everything around the state: reward update, etc.
+
 """
 
 import googlemaps as gm

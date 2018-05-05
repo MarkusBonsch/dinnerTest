@@ -13,6 +13,8 @@ import math
 import numpy as np
 import datetime as dt
 import pdb
+import plotly.plotly as py
+import plotly.graph_objs as go
 
 class assignDinnerCourses:
     
@@ -20,6 +22,7 @@ class assignDinnerCourses:
         self.dinnerTable = dinnerTable
         self.finalPartyLocation = finalPartyLocation
         self.verbose = verbose
+        self.myGp = gp.geoProcessing()
         self.ListOfCourseToTableAssignment = {'starter':[], 'mainCourse':[], 'dessert':[]}
 
 
@@ -27,11 +30,14 @@ class assignDinnerCourses:
 
         # Clear assignedCourses from last call
         self.ListOfCourseToTableAssignment = {'starter':[], 'mainCourse':[], 'dessert':[]}
+        if 'assignedCourse' in self.dinnerTable.columns.values:
+            self.dinnerTable.drop('assignedCourse', axis = 1)
         # Print out the intolerances that are considered
         keyword='Intolerant'
         intolerances = [x for x in self.dinnerTable.keys() if keyword in x]
-        if self.verbose: print "Following intolerances are considered : " + str(intolerances)
-        print ''
+        if self.verbose: 
+            print "Following intolerances are considered : " + str(intolerances)
+            print ''
 
         # Identify intolerance classes and offered tables classes and teams belonging to them
         intoleranceClassesDict = self.identifyIntoleranceGroups()
@@ -99,12 +105,12 @@ class assignDinnerCourses:
                 print 'il = ' + str(il)
                 break 
             il=il+1
-        
-        print ''
-        print '%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%'
-        print 'FINAL RESULT'
-        print self.ListOfCourseToTableAssignment
-        print '%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%'
+        if self.verbose: 
+            print ''
+            print '%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%'
+            print 'FINAL RESULT'
+            print self.ListOfCourseToTableAssignment
+            print '%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%'
         ## update the dinnerTable with the assigned courses
         courseTable = {'team': [], 'assignedCourse' : []}
         courseIds = {'starter': 1, 'mainCourse': 2, 'dessert': 3}
@@ -113,7 +119,7 @@ class assignDinnerCourses:
             courseTable['assignedCourse'].extend([courseIds[key]]*len(value))
         courseTable = pd.DataFrame(courseTable)
         self.dinnerTable = self.dinnerTable.merge(courseTable, on = 'team', how = 'left', validate = "1:1")
-        return(self.ListOfCourseToTableAssignment) 
+        return(self.dinnerTable) 
 
     # ==============================================================================================================================
     def assignCourse(self,intoleranceClass,offeredTablesDict,numOfNeededTablesPerCourse, numOfNeededRescueTablesPerCourse):
@@ -145,9 +151,17 @@ class assignDinnerCourses:
             if self.verbose :
                 print '\n' + 'scores = '
                 print courseScoresPerTable
-            indexOfMaximum  = courseScoresPerTable[['starter','mainCourse','dessert']].max(axis='columns').idxmax()
-            courseOfMaximum = courseScoresPerTable[['starter','mainCourse','dessert']].max(axis='index').idxmax()
-            tableOfMaximum  = courseScoresPerTable['table'].loc[indexOfMaximum]
+            valueOfMaximum  = courseScoresPerTable[['starter','mainCourse','dessert']].max().max()
+            maxIndices = []
+            ## silly and slow but don't know how to do it better with pandas
+            for col in ['starter', 'mainCourse', 'dessert']:
+                for idx in courseScoresPerTable.index:
+                    if courseScoresPerTable.loc[idx,col] == valueOfMaximum:
+                        maxIndices.append((idx,col))
+            ## choose randomly from maxIndices
+            choice = rd.randrange(len(maxIndices))
+            courseOfMaximum = maxIndices[choice][1]
+            tableOfMaximum  = courseScoresPerTable['table'].loc[maxIndices[choice][0]]
             if self.verbose : print "Course " + str(courseOfMaximum) + " is assigned to table " + str(tableOfMaximum)
             listOfAssignedCourses[courseOfMaximum].append(tableOfMaximum)
             courseScoresPerTable = courseScoresPerTable.loc[courseScoresPerTable['table']!=tableOfMaximum,:]
@@ -251,7 +265,7 @@ class assignDinnerCourses:
                 downgradedIntoleranceGroup[idx] = 0
                 break
         downgradedIntoleranceGroup = tuple(downgradedIntoleranceGroup)
-        print 'This intolerance group is downgraded to ' + str(downgradedIntoleranceGroup)
+        if self.verbose: print 'This intolerance group is downgraded to ' + str(downgradedIntoleranceGroup)
         intoleranceClassesDict[downgradedIntoleranceGroup].extend(teamsToDowngrade)
         return intoleranceClassesDict
 

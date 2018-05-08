@@ -26,13 +26,13 @@ class assignDinnerCourses:
         self.myGp = gp.geoProcessing()
         self.scaleFactors = {'wish': 150, 'neededTable': 200, 'neededRescueTable': 100}
         self.wishScores = self.getWishScore(dinnerTable)
-        self.ListOfCourseToTableAssignment = {'starter':[], 'mainCourse':[], 'dessert':[]}
+        self.ListOfCourseToTableAssignment = {1:[], 2:[], 3:[]}
 
 
     def assignDinnerCourses(self):
 
         # Clear assignedCourses from last call
-        self.ListOfCourseToTableAssignment = {'starter':[], 'mainCourse':[], 'dessert':[]}
+        self.ListOfCourseToTableAssignment = {1:[], 2:[], 3:[]}
         if 'assignedCourse' in self.dinnerTable.columns.values:
             self.dinnerTable.drop('assignedCourse', axis = 1, inplace = True)
         # Print out the intolerances that are considered
@@ -56,7 +56,7 @@ class assignDinnerCourses:
 
 
         # Define a data frame that stores all courses that are assigned already to an intolerance class and the teams belonging to this intolerance class
-        assignedCoursesForTeams  = pd.DataFrame(columns=['intoleranceClass', 'teamList', 'starter', 'mainCourse', 'dessert'])
+        assignedCoursesForTeams  = pd.DataFrame(columns=['intoleranceClass', 'teamList', '1', '2', '3'])
 
         il=1
         # Start from most restrictive intolerance class with non-zero entries
@@ -116,10 +116,9 @@ class assignDinnerCourses:
             print '%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%'
         ## update the dinnerTable with the assigned courses
         courseTable = {'team': [], 'assignedCourse' : []}
-        courseIds = {'starter': 1, 'mainCourse': 2, 'dessert': 3}
         for key, value in self.ListOfCourseToTableAssignment.iteritems():
             courseTable['team'].extend(value)
-            courseTable['assignedCourse'].extend([courseIds[key]]*len(value))
+            courseTable['assignedCourse'].extend([key]*len(value))
         courseTable = pd.DataFrame(courseTable)
         self.dinnerTable = self.dinnerTable.merge(courseTable, on = 'team', how = 'left', validate = "1:1")
         return(self.dinnerTable) 
@@ -127,7 +126,7 @@ class assignDinnerCourses:
     # ==============================================================================================================================
     def assignCourse(self,intoleranceClass,offeredTablesDict,numOfNeededTablesPerCourse, numOfNeededRescueTablesPerCourse):
 
-        listOfAssignedCourses = {'starter':[],'mainCourse':[],'dessert':[]}
+        listOfAssignedCourses = {1:[],2:[],3:[]}
         useableTables = []
 
         if all(value == 0 for value in numOfNeededTablesPerCourse.values()) : return(listOfAssignedCourses)
@@ -148,14 +147,14 @@ class assignDinnerCourses:
                 print '\n' + 'scores = '
                 print courseScoresPerTable
             ## get all maxima of scores
-            maxIndices = self.allIdxMax(courseScoresPerTable[['starter', 'mainCourse', 'dessert']])
+            maxIndices = np.where(courseScoresPerTable[:, 1:4] == courseScoresPerTable[:, 1:4].max())
             ## choose randomly from maxIndices
             if self.randChoice:
-                choice = rd.randrange(len(maxIndices))
+                choice = rd.randrange(len(maxIndices[0]))
             else:
                 choice = 0
-            courseOfMaximum = maxIndices[choice][1]
-            tableOfMaximum  = courseScoresPerTable['table'].loc[maxIndices[choice][0]]
+            courseOfMaximum = maxIndices[1][choice] + 1
+            tableOfMaximum  = courseScoresPerTable[maxIndices[0][choice],0]
             if self.verbose : print "Course " + str(courseOfMaximum) + " is assigned to table " + str(tableOfMaximum)
             listOfAssignedCourses[courseOfMaximum].append(tableOfMaximum)
             ## reduce list of available tables
@@ -165,66 +164,53 @@ class assignDinnerCourses:
             if all(value <= 0 for value in numOfNeededTablesPerCourse.values()) : break
             ## update the course scores
             if len(useableTables) > 0:
-                self.updateCourseScoresPerTable(courseScoresPerTable, tableOfMaximum, courseOfMaximum, numOfNeededTablesPerCourse)            
+                courseScoresPerTable = self.updateCourseScoresPerTable(courseScoresPerTable, maxIndices[0][choice], tableOfMaximum, courseOfMaximum, numOfNeededTablesPerCourse)            
         return(listOfAssignedCourses)
 
     # ==============================================================================================================================
-    def allIdxMax(self, df):
-        valueOfMaximum  = df.max().max()
-        maxIndices = []
-        ## silly and slow but don't know how to do it better with pandas
-        for col in df.columns.values:
-            for idx in df.index:
-                if df.loc[idx,col] == valueOfMaximum:
-                    maxIndices.append((idx,col)) 
-        return maxIndices
-
-    # ==============================================================================================================================
     def getWishScore(self, dinnerTable) :
-        ## one column per course, one row per team. 1 if wish matches course
-        out = pd.DataFrame(index = range(len(dinnerTable)))
-        out['table'] = range(1,len(out)+1)
-        names = {1:'starter',2:'mainCourse',3:'dessert'}
+        ## columns: 0 = tableId, 1 = starterScore, 2 = mainCourseScore, 3 = dessertScore.
+        ## one row per team
+        out = np.empty((len(dinnerTable), 4), 'float')
+        out[:,0] = range(1,len(dinnerTable)+1)
         for i in xrange(1,4):
-            out[names[i]] =(dinnerTable['courseWish'] == i).astype('int')
+            out[:,i] = (dinnerTable['courseWish'] == i).astype('int')
         return(out)
     # ==============================================================================================================================
     def getCourseScoresPerTable(self, useableTables, neededTablesPerCourse, neededRescueTablesPerCourse) :
+        out = self.wishScores[np.isin(self.wishScores[:,0], useableTables)]
+        out[:, 1:4] *= self.scaleFactors['wish'] 
         
-        out = (self.wishScores
-               .loc[self.wishScores['table'].isin(useableTables), 'table']
-               .to_frame())
-        
-        for course in ['starter', 'mainCourse', 'dessert']:
-            out[course] = self.wishScores[course] * self.scaleFactors['wish']
+        for course in xrange(1,4):
             ## do heavy penalty if too many tables in that course already
             if neededTablesPerCourse[course] <= 0:
                 tableScale = -100000
             else:
                 tableScale = self.scaleFactors['neededTable'] * neededTablesPerCourse[course]
-            out[course] = (out[course] 
-                           + tableScale 
-                           + self.scaleFactors['neededRescueTable'] * neededRescueTablesPerCourse[course])
+            out[:, course] += (tableScale + self.scaleFactors['neededRescueTable'] * neededRescueTablesPerCourse[course])
         return(out)
 
     # ==============================================================================================================================
-    def updateCourseScoresPerTable(self, courseScoresPerTable, tableOfMaximum, courseOfMaximum, numOfNeededTablesPerCourse):
+    def updateCourseScoresPerTable(self, courseScoresPerTable, rowOfMaximum, tableOfMaximum, courseOfMaximum, numOfNeededTablesPerCourse):
         ## remove row with tableOfMaximum
-        courseScoresPerTable.drop(courseScoresPerTable[courseScoresPerTable['table'] == tableOfMaximum].index, axis = 0, inplace = True)
-        ## adjust totalTableScore
-        
+        courseScoresPerTable = np.delete(courseScoresPerTable, rowOfMaximum, axis = 0)
         ## reduce totalTableScore by one since the number of needed tables were reduced by one
-        courseScoresPerTable[courseOfMaximum] = courseScoresPerTable[courseOfMaximum] - 1 * self.scaleFactors['neededTable']
+        courseScoresPerTable[:, courseOfMaximum] -= 1 * self.scaleFactors['neededTable']
         if numOfNeededTablesPerCourse[courseOfMaximum] == 0:
             ## reduce by additional penalty for no more tables needed
-            courseScoresPerTable[courseOfMaximum] = courseScoresPerTable[courseOfMaximum] - 100000
+            courseScoresPerTable[:, courseOfMaximum] -= 100000
         ## adjust rescueTableScore
         if self.isRescueTable(tableOfMaximum):
-            courseScoresPerTable[courseOfMaximum] = courseScoresPerTable[courseOfMaximum] - 1 * self.scaleFactors['neededRescueTable']
+            courseScoresPerTable[:, courseOfMaximum] -= 1 * self.scaleFactors['neededRescueTable']
+        return courseScoresPerTable
         
     # ==============================================================================================================================
     def updateAssignedCoursesTable(self, assignedTablesDict, assignedCoursesForTeams, intoleranceTeamList, intoleranceClass):
-        assignedCourses = pd.DataFrame({'intoleranceClass' : [intoleranceClass], 'teamList' : [intoleranceTeamList], 'starter' : [len(assignedTablesDict['starter'])], 'mainCourse' : [len(assignedTablesDict['mainCourse'])], 'dessert' : [len(assignedTablesDict['dessert'])]})
+        assignedCourses = pd.DataFrame({'intoleranceClass' : [intoleranceClass], 
+                                        'teamList' : [intoleranceTeamList], 
+                                        '1' : [len(assignedTablesDict[1])], 
+                                        '2' : [len(assignedTablesDict[2])], 
+                                        '3' : [len(assignedTablesDict[3])]})
         return assignedCourses
 
     # ======================================================================================================================================================================
@@ -241,11 +227,11 @@ class assignDinnerCourses:
         for index, row in assignedCoursesForTeams.iterrows():
             for teamsAlreadyAssigned in row["teamList"] : 
                 if teamsAlreadyAssigned in teamList : #FIXME: why does this work?
-                    n_starter -= row['starter']
-                    n_mainCourse -= row['mainCourse']
-                    n_dessert -= row['dessert']
+                    n_starter -= row['1']
+                    n_mainCourse -= row['2']
+                    n_dessert -= row['3']
                     break
-        nRequiredTables = {'starter':n_starter,'mainCourse':n_mainCourse,'dessert':n_dessert}
+        nRequiredTables = {1:n_starter,2:n_mainCourse,3:n_dessert}
         return( nRequiredTables )
         
     # ======================================================================================================================================================================
@@ -254,13 +240,12 @@ class assignDinnerCourses:
         n_starter    = nRescueTotal / 3.0
         n_mainCourse = nRescueTotal / 3.0
         n_dessert    = nRescueTotal / 3.0
-        nRequiredTables = {'starter':n_starter,'mainCourse':n_mainCourse,'dessert':n_dessert}
+        nRequiredTables = {1:n_starter,2:n_mainCourse,3:n_dessert}
         
         if self.verbose: print 'Number of required rescue tables: '
-        for course in ['starter', 'mainCourse', 'dessert']:
+        for course in xrange(1,4):
             nRequiredTables[course] -= self.dinnerTable.loc[self.dinnerTable['team'].isin(self.ListOfCourseToTableAssignment[course]), 'rescueTable'].sum()
             if self.verbose: print str(course) + ' = ' + str(nRequiredTables[course])
-        
         return( nRequiredTables )
 
     # ==============================================================================================================================
@@ -350,6 +335,6 @@ class assignDinnerCourses:
 
     # ==============================================================================================================================
     def  updateGlobalTableList(self, listOfAssignedCourses) :
-        self.ListOfCourseToTableAssignment['starter'].extend(listOfAssignedCourses['starter'])
-        self.ListOfCourseToTableAssignment['mainCourse'].extend(listOfAssignedCourses['mainCourse'])
-        self.ListOfCourseToTableAssignment['dessert'].extend(listOfAssignedCourses['dessert'])
+        self.ListOfCourseToTableAssignment[1].extend(listOfAssignedCourses[1])
+        self.ListOfCourseToTableAssignment[2].extend(listOfAssignedCourses[2])
+        self.ListOfCourseToTableAssignment[3].extend(listOfAssignedCourses[3])

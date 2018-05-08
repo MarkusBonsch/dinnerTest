@@ -162,10 +162,10 @@ class assignDinnerCourses:
             useableTables.remove(tableOfMaximum)
             numOfNeededTablesPerCourse[courseOfMaximum] -= 1;
             numOfNeededRescueTablesPerCourse[courseOfMaximum] -= 1;
-            ## update the course scores
-            courseScoresPerTable = self.updateCourseScoresPerTable(courseScoresPerTable, tableOfMaximum, courseOfMaximum, numOfNeededTablesPerCourse)
             if all(value <= 0 for value in numOfNeededTablesPerCourse.values()) : break
-
+            ## update the course scores
+            if len(useableTables) > 0:
+                self.updateCourseScoresPerTable(courseScoresPerTable, tableOfMaximum, courseOfMaximum, numOfNeededTablesPerCourse)            
         return(listOfAssignedCourses)
 
     # ==============================================================================================================================
@@ -210,18 +210,17 @@ class assignDinnerCourses:
     # ==============================================================================================================================
     def updateCourseScoresPerTable(self, courseScoresPerTable, tableOfMaximum, courseOfMaximum, numOfNeededTablesPerCourse):
         ## remove row with tableOfMaximum
-        out = courseScoresPerTable.drop(courseScoresPerTable[courseScoresPerTable['table'] == tableOfMaximum].index, axis = 0)
+        courseScoresPerTable.drop(courseScoresPerTable[courseScoresPerTable['table'] == tableOfMaximum].index, axis = 0, inplace = True)
         ## adjust totalTableScore
         
         ## reduce totalTableScore by one since the number of needed tables were reduced by one
-        out[courseOfMaximum] = out[courseOfMaximum] - 1 * self.scaleFactors['neededTable']
+        courseScoresPerTable[courseOfMaximum] = courseScoresPerTable[courseOfMaximum] - 1 * self.scaleFactors['neededTable']
         if numOfNeededTablesPerCourse[courseOfMaximum] == 0:
             ## reduce by additional penalty for no more tables needed
-            out[courseOfMaximum] = out[courseOfMaximum] - 100000
+            courseScoresPerTable[courseOfMaximum] = courseScoresPerTable[courseOfMaximum] - 100000
         ## adjust rescueTableScore
         if self.isRescueTable(tableOfMaximum):
-            out[courseOfMaximum] = out[courseOfMaximum] - 1 * self.scaleFactors['neededRescueTable']
-        return out
+            courseScoresPerTable[courseOfMaximum] = courseScoresPerTable[courseOfMaximum] - 1 * self.scaleFactors['neededRescueTable']
         
     # ==============================================================================================================================
     def updateAssignedCoursesTable(self, assignedTablesDict, assignedCoursesForTeams, intoleranceTeamList, intoleranceClass):

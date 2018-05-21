@@ -13,8 +13,6 @@ import math
 import numpy as np
 import datetime as dt
 import pdb
-import plotly.plotly as py
-import plotly.graph_objs as go
 
 class assignDinnerCourses:
     
@@ -114,6 +112,7 @@ class assignDinnerCourses:
             print 'FINAL RESULT'
             print self.ListOfCourseToTableAssignment
             print '%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%'
+        pdb.set_trace()
         ## update the dinnerTable with the assigned courses
         courseTable = {'team': [], 'assignedCourse' : []}
         for key, value in self.ListOfCourseToTableAssignment.iteritems():
@@ -215,9 +214,9 @@ class assignDinnerCourses:
 
     # ======================================================================================================================================================================
     def getNumberOfRequiredTablesPerCourse(self,intoleranceClass,teamList,assignedCoursesForTeams):
-        n_starter    = len(teamList)/3 + min(1,len(teamList)%3)
-        n_mainCourse = len(teamList)/3 + min(1,len(teamList)%3)
-        n_dessert    = len(teamList)/3 + min(1,len(teamList)%3)
+        n_starter    = len(teamList)/3
+        n_mainCourse = len(teamList)/3
+        n_dessert    = len(teamList)/3
         #if self.verbose :
         #    print 'Number of required tables before subtraction : '
         #    print 'n_starter = ' + str(n_starter)
@@ -226,7 +225,7 @@ class assignDinnerCourses:
 
         for index, row in assignedCoursesForTeams.iterrows():
             for teamsAlreadyAssigned in row["teamList"] : 
-                if teamsAlreadyAssigned in teamList : #FIXME: why does this work?
+                if teamsAlreadyAssigned in teamList :
                     n_starter -= row['1']
                     n_mainCourse -= row['2']
                     n_dessert -= row['3']

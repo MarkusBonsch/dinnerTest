@@ -9,6 +9,7 @@ import random as rd
 import geoProcessing as gp
 import itertools
 import collections as cl
+import copy
 import math
 import numpy as np
 import datetime as dt
@@ -16,18 +17,17 @@ import pdb
 
 class assignDinnerCourses:
     
-    def __init__(self, dinnerTable , finalPartyLocation, randChoice = True, verbose = False):
+    def __init__(self, dinnerTable , finalPartyLocation, verbose = False):
         self.dinnerTable = dinnerTable
         self.finalPartyLocation = finalPartyLocation
         self.verbose = verbose
-        self.randChoice = randChoice
         self.myGp = gp.geoProcessing()
         self.scaleFactors = {'wish': 150, 'neededTable': 200, 'neededRescueTable': 100}
         self.wishScores = self.getWishScore(dinnerTable)
         self.ListOfCourseToTableAssignment = {1:[], 2:[], 3:[]}
 
 
-    def assignDinnerCourses(self):
+    def assignDinnerCourses(self, random = True):
 
         # Clear assignedCourses from last call
         self.ListOfCourseToTableAssignment = {1:[], 2:[], 3:[]}
@@ -87,7 +87,7 @@ class assignDinnerCourses:
 
             # 2.) Assign as many courses as possible for this intolerance group - break the loop and degrade intolerance group if no more offered tables are left that match the intolerance group 
             if self.verbose : print 'Assigning courses ...'
-            listOfAssignedCourses = self.assignCourse(intoleranceClass,offeredTablesDict,nRequiredTables, nRequiredRescueTables)
+            listOfAssignedCourses = self.assignCourse(intoleranceClass,offeredTablesDict,nRequiredTables, nRequiredRescueTables, random)
             if self.verbose : print '\n' + 'listOfAssignedCourses = ' + str(listOfAssignedCourses)
 
             # 3.) Update offeredTablesDict -> remove assigned tables
@@ -112,18 +112,17 @@ class assignDinnerCourses:
             print 'FINAL RESULT'
             print self.ListOfCourseToTableAssignment
             print '%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%'
-        pdb.set_trace()
         ## update the dinnerTable with the assigned courses
         courseTable = {'team': [], 'assignedCourse' : []}
         for key, value in self.ListOfCourseToTableAssignment.iteritems():
             courseTable['team'].extend(value)
             courseTable['assignedCourse'].extend([key]*len(value))
-        courseTable = pd.DataFrame(courseTable)
+        courseTable = pd.DataFrame(courseTable, dtype = 'int')
         self.dinnerTable = self.dinnerTable.merge(courseTable, on = 'team', how = 'left', validate = "1:1")
-        return(self.dinnerTable) 
+        return(copy.deepcopy(self.dinnerTable))
 
     # ==============================================================================================================================
-    def assignCourse(self,intoleranceClass,offeredTablesDict,numOfNeededTablesPerCourse, numOfNeededRescueTablesPerCourse):
+    def assignCourse(self,intoleranceClass,offeredTablesDict,numOfNeededTablesPerCourse, numOfNeededRescueTablesPerCourse, random = True):
 
         listOfAssignedCourses = {1:[],2:[],3:[]}
         useableTables = []
@@ -148,7 +147,7 @@ class assignDinnerCourses:
             ## get all maxima of scores
             maxIndices = np.where(courseScoresPerTable[:, 1:4] == courseScoresPerTable[:, 1:4].max())
             ## choose randomly from maxIndices
-            if self.randChoice:
+            if random:
                 choice = rd.randrange(len(maxIndices[0]))
             else:
                 choice = 0

@@ -27,10 +27,11 @@ class validation:
         tmp['addressLng'] = tmp.pop('lng')
         tmp['assignedCourse'] = -1
         dinnerTable = dinnerTable.append(tmp, ignore_index = True)
-        
+        ## convert nan course to -2
+        dinnerTable.loc[np.isnan(dinnerTable['assignedCourse']), 'assignedCourse'] = -2
         ## create input data
-        colors = {-1:'rgb(0,0,0)', 1:'rgb(255,0,0)', 2:'rgb(0,255,0)', 3:'rgb(0,0,255)'}
-        courseNames = {-1:'party', 1:'starter', 2:'mainCourse', 3:'dessert'}
+        colors = {-2: 'rgb(165,42,42)', -1:'rgb(0,0,0)', 1:'rgb(255,0,0)', 2:'rgb(0,255,0)', 3:'rgb(0,0,255)'}
+        courseNames = {-2: 'no course (rescued)', -1:'party', 1:'starter', 2:'mainCourse', 3:'dessert'}
         data = []
         for course in dinnerTable.loc[:, 'assignedCourse'].unique():
             thisDat = dinnerTable.loc[dinnerTable['assignedCourse'] == course]
@@ -46,6 +47,35 @@ class validation:
                             size = 15
                             )
                     ))
+#        ## add lines for the travel route of each team if applicable
+#        if 'starterLocation' in dinnerTable.columns.values:
+#            ## convert to numpy array for simplicity
+#            locs = np.empty((4,)) ## locations for each course, includign home location
+#            lat = np.empty((4,2)) ## 4 distances per team with start and end
+#            lng = np.empty((4,2)) ## 4 distances per team with start and end
+#            lat[:,3] = dinnerTable.loc[len(dinnerTable)-1, 'addressLat'] ## final party location never changes
+#            lng[:,3] = dinnerTable.loc[len(dinnerTable)-1, 'addressLng'] ## final party location never changes
+#            for t in xrange(0,len(dinnerTable) - 1): ## -1 for final party location
+#                print t
+#                ## get all locations and the distances
+#                locs[0] = t ## home locationd
+#                locs[1:4] = dinnerTable.loc[t, ['starterLocation', 'mainCourseLocation', 'dessertLocation']].values
+#                for l in xrange(0,3):
+#                    pdb.set_trace()
+#                    lat[l,0] = dinnerTable.loc[locs[l], 'addressLat']
+#                    lat[l,1] = dinnerTable.loc[locs[l+1], 'addressLat']
+#                    lng[l,0] = dinnerTable.loc[locs[l], 'addressLng']
+#                    lng[l,1] = dinnerTable.loc[locs[l+1], 'addressLng']
+#                
+#                data.append(go.Scattermapbox(
+#                    lon = lng,
+#                    lat = lat,
+#                    name = 'route' + str(t),
+#                    mode = 'lines',
+#                    visible = False
+#                    ))
+                
+                
         layout = go.Layout(
                 autosize=True,
                 hovermode='closest',

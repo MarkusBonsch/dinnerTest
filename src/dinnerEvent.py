@@ -24,16 +24,18 @@ class dinnerEvent:
         assign()
     """
     
-    def __init__(self, dinnerTable, finalPartyLocation, dinnerTime):
+    def __init__(self, dinnerTable, finalPartyLocation, dinnerTime, travelMode = 'simple'):
         """
         Args:
             dinnerTable (pandas dataframe): info about all the teams in defined format
             finalPartyLocation (string): currently ignored
             dinnerTime (datetime): time of the dinner
+            travelMode (string): see state.__init__ documentation for details.
+                                 'simple' is safe and easy
         """
         self.courseAssigner = assignDinnerCourses(dinnerTable, 
                                                       finalPartyLocation)
-        self.state = state(dinnerTable, dinnerTime)
+        self.state = state(dinnerTable, dinnerTime, travelMode)
         self.tableAssigner = randomAgent(self.state)
         self.validation = validation()
         

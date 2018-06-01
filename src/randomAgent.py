@@ -35,7 +35,12 @@ class randomAgent:
         if state.isDone:
             return np.nan
         ## get indices of rewards in decreasing order
-        order = np.argsort(-state.rewards)
+        orderAll = np.argsort(-state.rewards)
+        ## remove entries that are not valid actions
+        order = orderAll[state.validActions[orderAll]==1]
+        
+        ## take out invalid actions
+        
         if not random:
             return order[0]
         else:

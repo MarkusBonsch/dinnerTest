@@ -13,6 +13,7 @@ import datetime as dt
 import yaml
 import numpy as np
 import os
+import math
 
 
 class geoProcessing:
@@ -66,14 +67,14 @@ class geoProcessing:
             return(True)
 
     def getTravelTime(self, origin, destination, mode = "transit", departureTime = dt.datetime.now(), **kwargs):
-        """Function determines the travel time between origin and desitnation
+        """Function determines the travel time between origin and destination
         Args:
             origin (dict): with entries 'lat' and 'lng' giving the geocoordinates
                            of the start point.
             destination (dict): with entries 'lat' and 'lng' giving the geocoordinates
                                 of the end point.
             mode (str): travel mode. See help(googlemaps.distance_matrix) for
-                        details.
+                        details. Can also be 'simple'. This takes the shortest distance and assumes a speed of 10 km/h
             departureTime (datetime.datetime): time of desired departure from origin
             **kwargs: additional arguments to googlemaps.distance_matrix. 
                       See help(googlemaps.distance_matrix) for
@@ -81,15 +82,41 @@ class geoProcessing:
             Returns:
                 int: travel time of first route in seconds. If no route is found, None.
         """
-        
-        kwargs['origins'] = origin
-        kwargs['destinations'] = destination
-        kwargs['mode'] = mode
-        kwargs['departure_time'] = departureTime
-        out = self.gmapClient.distance_matrix(**kwargs)
-        ## no route found
-        if out['rows'][0]['elements'][0]['status'] != 'OK':
-            out = np.nan
-        else:
-            out = out['rows'][0]['elements'][0]['duration']['value']
+        if mode == 'simple':
+            out = self.shortestDistance(origin, destination) / 10.0 * 3600 # from km to seconds
+        else: 
+            kwargs['origins'] = origin
+            kwargs['destinations'] = destination
+            kwargs['mode'] = mode
+            kwargs['departure_time'] = departureTime
+            out = self.gmapClient.distance_matrix(**kwargs)
+            ## no route found
+            if out['rows'][0]['elements'][0]['status'] != 'OK':
+                out = np.nan
+            else:
+                out = out['rows'][0]['elements'][0]['duration']['value']
         return out
+
+    def shortestDistance(self, origin, destination):
+        """
+        Calculates the shortest distance between two geoCoordinates.
+        (https://en.wikipedia.org/wiki/Haversine_formula)
+        Args:
+            origin (dict): with entries 'lat' and 'lng' giving the geocoordinates
+                           of the start point.
+            destination (dict): with entries 'lat' and 'lng' giving the geocoordinates
+                                of the end point.
+        Returns: 
+            float: the distance in km.
+        """
+        phi1 = origin['lat'] * math.pi / 180 ## to radians
+        phi2 = destination['lat'] * math.pi / 180 ## to radians
+        lambda1 = origin['lng'] * math.pi / 180 ## to radians
+        lambda2 = destination['lng'] * math.pi / 180 ## to radians
+        
+        out = 2*6371*math.asin(
+                       math.sqrt(
+                               math.sin((phi2-phi1)/2)**2+
+                               math.cos(phi1) * math.cos(phi2) *
+                                    math.sin((lambda2-lambda1)/2)**2))
+        return(out)

@@ -30,20 +30,21 @@ class state:
         
     """
     
-    def __init__(self, data, dinnerTime):
+    def __init__(self, data, dinnerTime, travelMode = 'transit'):
         """ 
         Do some time intensive preProcessing and store the results
         Args:
             data (list of dicts): one entry per team with all the relevant 
                                   information.
             dinnerTime (datetime.datetime): time of the dinner
+            travelMode (string): either 'simple' for just shortest distance at 10km/h,
+                                 or on of the modes documented in See help(googlemaps.distance_matrix).
         """
         ## save the raw data
         self.data = data
         ## travel time between locations from google API
-        travelModes = ['transit']
         self.travelTime = self.__classifyTravelTime(
-                self.__getTravelTime(data, dinnerTime, travelModes))
+                self.__getTravelTime(data, dinnerTime, [travelMode]))
         ## total number of teams
         self.nTeams = len(data)
         ## number of non-rescued teams
@@ -118,9 +119,10 @@ class state:
         self.__updateActiveCourse()
         self.__updateActiveTeam()
         self.__updateIsDone()  
-        self.__updateCurrentLocations() ## important after course. Otherwise they are not set
-        self.__updateValidActions()
-        self.__updateRewards()
+        if not self.isDone:
+            self.__updateCurrentLocations()
+            self.__updateValidActions()
+            self.__updateRewards()
         
     def initRescueState(self):
         """
@@ -143,9 +145,10 @@ class state:
         self.__updateActiveCourse()
         self.__updateActiveTeam()
         self.__updateIsDone()  
-        self.__updateCurrentLocations() ## important after course. Otherwise they are not set
-        self.__updateValidActions()
-        self.__updateRewards()
+        if not self.isDone:
+            self.__updateCurrentLocations()
+            self.__updateValidActions()
+            self.__updateRewards()
         
     def updateAssignedCourses(self, data):
         """
@@ -561,10 +564,10 @@ class state:
         distMatrix = np.zeros(shape = (nTeams, nTeams, len(travelModes)), dtype = float)
         for s in xrange(1, nTeams + 1):
             for e in xrange(s + 1, nTeams + 1):
-                origin = dict(lat = data.loc[data['team'] == s, 'addressLat'],
-                              lng = data.loc[data['team'] == s, 'addressLng'])
-                destination = dict(lat = data.loc[data['team'] == e, 'addressLat'],
-                                   lng = data.loc[data['team'] == e, 'addressLng'])
+                origin = dict(lat = data.loc[data['team'] == s, 'addressLat'].item(),
+                              lng = data.loc[data['team'] == s, 'addressLng'].item())
+                destination = dict(lat = data.loc[data['team'] == e, 'addressLat'].item(),
+                                   lng = data.loc[data['team'] == e, 'addressLng'].item())
                 ## get the distance from s to e for each travelMode
                 for t in xrange(0, len(travelModes)):
                     distMatrix[s - 1, e - 1, t] = myGp.getTravelTime(origin = origin,

@@ -74,7 +74,8 @@ class dinnerEvent:
             If random is required, several assignments are calculated and stored.
             The final choice of the best one is made according to the following criteria
             (ordered by importance):
-                1. Choose all assignments with the minimum number of violated intolerances
+                1. Choose all assignments where the maximum nnumber of teams can participate
+                1. Amongst these, choose all assignments with the minimum number of violated intolerances
                 2. Amongst these, choose all assignments with the maximum number of people met
                 3. Amongst these, choose the assignment with the shortest total travel distance
         """
@@ -89,30 +90,38 @@ class dinnerEvent:
         ## for each assignedCourses, get a list with assignedTables.
         assignedTables = []
         ## get a numpy array for the scores. 3 Columns for intoleranceScore, meetScore and distanceScore
-        scores = np.zeros((len(assignedCourses) * max(1,repTableAssign), 3))
+        scores = np.zeros((len(assignedCourses) * max(1,repTableAssign), 4))
         for i in xrange(0, len(assignedCourses)):
             self.state.updateAssignedCourses(assignedCourses[i])
             if repTableAssign == 0:
                 self.assignTables(random = False) ## updates self.state
                 assignedTables.append(self.state.export())
-                scores[i,0] = assignedTables[i][3]['nMissedIntolerances'].item()
-                scores[i,1] = self.state.getMeetScore()[1]
-                scores[i,2] = self.state.getDistanceScore()[1]
+                scores[i,0] = self.state.getMissingTeamScore()[1]
+                scores[i,1] = assignedTables[i][3]['nMissedIntolerances'].item()
+                scores[i,2] = self.state.getMeetScore()[1]
+                scores[i,3] = self.state.getDistanceScore()[1]
             else:
                 for j in xrange(0, repTableAssign):
                     self.assignTables(random = True) ## update self.state
                     assignedTables.append(self.state.export())
-                    scores[i*repTableAssign + j,0] = assignedTables[i*repTableAssign+j][3]['nMissedIntolerances'].item()
-                    scores[i*repTableAssign + j,1] = self.state.getMeetScore()[1]
-                    scores[i*repTableAssign + j,2] = self.state.getDistanceScore()[1]
+                    scores[i*repTableAssign + j,0] = self.state.getMissingTeamScore()[1]
+                    scores[i*repTableAssign + j,1] = assignedTables[i*repTableAssign+j][3]['nMissedIntolerances'].item()
+                    scores[i*repTableAssign + j,2] = self.state.getMeetScore()[1]
+                    scores[i*repTableAssign + j,3] = self.state.getDistanceScore()[1]
         if len(assignedTables) == 1:
             final = assignedTables[0]
         else:
             ## choose best setup.
-            minIntoleranceMissIdx = np.where(scores[:,0] == np.amin(scores[:,0], axis = 0))[0]
-            maxPeopleIdx = np.where(scores[minIntoleranceMissIdx,1] == np.amax(scores[minIntoleranceMissIdx,1], axis = 0))[0]
-            maxIdx = np.argmin(scores[minIntoleranceMissIdx[maxPeopleIdx],2]) ## minimum distance
-            final = assignedTables[minIntoleranceMissIdx[maxPeopleIdx[maxIdx]]]
+#            pdb.set_trace()
+            minMissingTeamScore = np.where(scores[:,0] == np.amin(scores[:,0], axis = 0))[0]
+            fullIdx = minMissingTeamScore
+            minIntoleranceMissIdx = np.where(scores[fullIdx,1] == np.amin(scores[fullIdx,1], axis = 0))[0]
+            fullIdx = fullIdx[minIntoleranceMissIdx]
+            maxPeopleIdx = np.where(scores[fullIdx,2] == np.amax(scores[fullIdx,2], axis = 0))[0]
+            fullIdx = fullIdx[maxPeopleIdx]
+            minDistIdx = np.argmin(scores[fullIdx,3]) ## minimum distance
+            fullIdx = fullIdx[minDistIdx]
+            final = assignedTables[fullIdx]
         
         if outFolder is not None:
             if not os.path.exists(outFolder):

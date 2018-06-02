@@ -401,8 +401,17 @@ class state:
             for c in xrange(0,3):
                 teamDist[t] += self.state[tmp[t,c], 1+tmp[t,c+1]]
         return (teamDist, teamDist.sum())
-                
-        
+            
+    def getMissingTeamScore(self):
+        """
+        Calculates, how many teams have not been fully seated for all courses.
+         Returns:
+            tuple with two entries:
+                1. 1d array with nTeams bool entries telling if the team was properly assigned for each course
+                2. int giving the total number of teams that were not properly assigned.
+        """
+        badTeamFlag = self.state[:, (1+self.nTeams+3):(1+4*self.nTeams+3)].sum(axis = 1) < 3
+        return (badTeamFlag, badTeamFlag.astype('int').sum())
         
         
     def export(self, fileName = None, overwrite = False):
@@ -454,6 +463,7 @@ class state:
         missedIntolerances = np.zeros((nTeams,))
         for t in xrange(0,nTeams):
             hosts = item1.iloc[t].as_matrix()
+            hosts = hosts[~np.isnan(hosts)]
             intoleranceIdx = np.where(self.state[t, [1+5*nTeams+4,
                                                      1+5*nTeams+6,
                                                      1+5*nTeams+8,
@@ -470,6 +480,7 @@ class state:
                        .sum(axis=0))
             missedIntolerances[t] = (3-freeNess).sum()
         item3['nMissedIntolerances'] = missedIntolerances
+        item3['teamMissing'] = self.getMissingTeamScore()[0]
             
         nForcedFree = np.zeros((nTeams,))
         for i in xrange(0,5):
@@ -484,6 +495,7 @@ class state:
         item4['distanceCovered'] = item3['distanceCovered'].sum()
         item4['nMissedIntolerances'] = item3['nMissedIntolerances'].sum()
         item4['nForcedFree'] = item3['nForcedFree'].sum()
+        item4['nMissingTeams'] = item3['teamMissing'].astype('int').sum()
         item4 = pd.DataFrame(item4, index = [0])
         item5 = copy.deepcopy(self.state)
         result = (item1,item2,item3,item4,item5)

@@ -22,7 +22,7 @@ class assignDinnerCourses:
         self.finalPartyLocation = finalPartyLocation
         self.verbose = verbose
         self.myGp = gp.geoProcessing()
-        self.scaleFactors = {'wish': 150, 'neededTable': 200, 'neededRescueTable': 100}
+        self.scaleFactors = {'wish': 150, 'neededTable': 200, 'neededRescueTable': 160}
         self.wishScores = self.getWishScore(dinnerTable)
         self.ListOfCourseToTableAssignment = {1:[], 2:[], 3:[]}
 

@@ -189,17 +189,13 @@ class state:
             np.nan in case nothing needs to be done anymore
         """
         ## checks, for which course there are free seats left and people that need seating
-        freeSeatCourse = False
-        hasNeedCourse = False
         self.activeCourse = np.nan
         for c in reversed(xrange(1,4)):
             ## going backwards through the courses to determine the first one with need
-            if self.state[:, 1+self.nTeams-1+c].sum() > 0:
-                freeSeatCourse = True
-            if np.any(np.logical_and(
-                       np.amax(self.state[:,(1+c*self.nTeams+3):(1+(c+1)*self.nTeams+3)], axis=1)==0,
-                       (1-self.state[:,0]).astype('bool'))):
-                hasNeedCourse = True
+            freeSeatCourse = self.state[:, 1+self.nTeams-1+c].sum() > 0
+            hasNeedCourse = np.any(np.logical_and(
+                                     np.amax(self.state[:,(1+c*self.nTeams+3):(1+(c+1)*self.nTeams+3)], axis=1)==0,
+                                     (1-self.state[:,0]).astype('bool')))
             if freeSeatCourse & hasNeedCourse:
                 self.activeCourse = c
                 break
@@ -363,6 +359,9 @@ class state:
         if not self.isDone:
             self.__updateCurrentLocations()
             self.__updateValidActions()
+            if np.all(self.validActions == 0):
+                pdb.set_trace()
+                raise ValueError('Internal error: no valid actions remain but state.isDone = False')
             self.__updateRewards()
             
     def getMeetScore(self):
@@ -382,18 +381,22 @@ class state:
         Returns:
             tuple with two entries:
                 1. 1d array with nTeams entries giving the travel distance for eah team
-                2. float iving the total travel distance
+                2. float giving the total travel distance
         """
         teamDist = np.empty((self.nTeams,))
-        teamDist[:] = -999
+        teamDist[:] = 9999 ## important high positive default so it does not get chosen on problems
         ## get 4d array with all locations, including starting location
         tmp = np.empty((self.nTeams, 4))
+        tmp[:,:] = -999
         tmp[:,0] = np.arange(self.nTeams) ## starting location is at home
         for c in xrange(1,4):
-            tmp[:,c] = np.where(self.state[:,(1+c*self.nTeams+3):(1+(c+1)*self.nTeams+3)] == 1)[1]
+            thisLoc = np.where(self.state[:,(1+c*self.nTeams+3):(1+(c+1)*self.nTeams+3)] == 1)
+            tmp[thisLoc[0],c] = thisLoc[1]
         tmp = tmp.astype('int') ## for using as index
         ## get distance from place at course  to place at course c+1 for team t
         for t in xrange(0,self.nTeams):
+            if np.any(tmp[t,:] == -999):
+                continue ## this team hasn't been seated properly. LUse default distance
             teamDist[t] = 0
             for c in xrange(0,3):
                 teamDist[t] += self.state[tmp[t,c], 1+tmp[t,c+1]]

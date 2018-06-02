@@ -38,9 +38,7 @@ class randomAgent:
         orderAll = np.argsort(-state.rewards)
         ## remove entries that are not valid actions
         order = orderAll[state.validActions[orderAll]==1]
-        
-        ## take out invalid actions
-        
+     
         if not random:
             return order[0]
         else:

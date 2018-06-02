@@ -384,7 +384,7 @@ class state:
                 2. float giving the total travel distance
         """
         teamDist = np.empty((self.nTeams,))
-        teamDist[:] = 9999 ## important high positive default so it does not get chosen on problems
+        teamDist[:] = 0
         ## get 4d array with all locations, including starting location
         tmp = np.empty((self.nTeams, 4))
         tmp[:,:] = -999

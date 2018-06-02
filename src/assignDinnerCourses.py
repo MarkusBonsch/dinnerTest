@@ -170,7 +170,7 @@ class assignDinnerCourses:
         ## columns: 0 = tableId, 1 = starterScore, 2 = mainCourseScore, 3 = dessertScore.
         ## one row per team
         out = np.empty((len(dinnerTable), 4), 'float')
-        out[:,0] = range(1,len(dinnerTable)+1)
+        out[:,0] = dinnerTable['team']
         for i in xrange(1,4):
             out[:,i] = (dinnerTable['courseWish'] == i).astype('int')
         return(out)

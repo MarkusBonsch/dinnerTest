@@ -565,15 +565,15 @@ class state:
         myGp = gp.geoProcessing()
         nTeams     = len(data)
         distMatrix = np.zeros(shape = (nTeams, nTeams, len(travelModes)), dtype = float)
-        for s in xrange(1, nTeams + 1):
-            for e in xrange(s + 1, nTeams + 1):
-                origin = dict(lat = data.loc[data['team'] == s, 'addressLat'].item(),
-                              lng = data.loc[data['team'] == s, 'addressLng'].item())
-                destination = dict(lat = data.loc[data['team'] == e, 'addressLat'].item(),
-                                   lng = data.loc[data['team'] == e, 'addressLng'].item())
+        for s in xrange(0, nTeams):
+            for e in xrange(s, nTeams):
+                origin = dict(lat = data.loc[s, 'addressLat'].item(),
+                              lng = data.loc[s, 'addressLng'].item())
+                destination = dict(lat = data.loc[e, 'addressLat'].item(),
+                                   lng = data.loc[e, 'addressLng'].item())
                 ## get the distance from s to e for each travelMode
                 for t in xrange(0, len(travelModes)):
-                    distMatrix[s - 1, e - 1, t] = myGp.getTravelTime(origin = origin,
+                    distMatrix[s, e, t] = myGp.getTravelTime(origin = origin,
                                               destination = destination,
                                               mode = travelModes[t],
                                               departureTime = dinnerTime) 

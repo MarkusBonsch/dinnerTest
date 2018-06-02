@@ -49,7 +49,7 @@ class randomDinnerGenerator:
 
     def generateDinner(self):
         dinner=list()
-        for t in xrange(1, self.numberOfTeams+1):
+        for t in xrange(0, self.numberOfTeams):
             if self.verbose: print("Generate team "+str(t)+":")
             team = self.generateTeam()
             team['team'] = t

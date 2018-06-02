@@ -271,32 +271,31 @@ class state:
         alphaLactose = 100
         alphaFish    = 100
         alphaSeafood = 50
-        
         ## calculate reward
         self.rewards =  (  alphaMeet    * self.__getNewPersonsMet()
                          - alphaInvalid * (1 - self.validActions)
                          - alphaDist    * self.__getNewDistances()
                          - (alphaCat     
-                            * np.logical_and(self.state[self.activeTeam, 1+5*self.nTeams+3].astype('bool'),
-                                             self.state[:, 1+5*self.nTeams+4].astype('bool')))
+                            * np.logical_and(self.state[self.activeTeam, 1+5*self.nTeams+4].astype('bool'),
+                                             np.logical_not(self.state[:, 1+5*self.nTeams+3].astype('bool'))))
                          - (alphaDog     
-                            * np.logical_and(self.state[self.activeTeam, 1+5*self.nTeams+5].astype('bool'),
-                                             self.state[:, 1+5*self.nTeams+6].astype('bool')))
+                            * np.logical_and(self.state[self.activeTeam, 1+5*self.nTeams+6].astype('bool'),
+                                             np.logical_not(self.state[:, 1+5*self.nTeams+5].astype('bool'))))
                          - (alphaAnimalProduct
-                            * np.logical_and(self.state[self.activeTeam, 1+5*self.nTeams+7].astype('bool'),
-                                             self.state[:, 1+5*self.nTeams+8].astype('bool')))
+                            * np.logical_and(self.state[self.activeTeam, 1+5*self.nTeams+8].astype('bool'),
+                                             np.logical_not(self.state[:, 1+5*self.nTeams+7].astype('bool'))))
                          - (alphaMeat
-                            * np.logical_and(self.state[self.activeTeam, 1+5*self.nTeams+9].astype('bool'),
-                                                  self.state[:, 1+5*self.nTeams+10].astype('bool')))
+                            * np.logical_and(self.state[self.activeTeam, 1+5*self.nTeams+10].astype('bool'),
+                                             np.logical_not(self.state[:, 1+5*self.nTeams+9].astype('bool'))))
                          - (alphaLactose
-                            * np.logical_and(self.state[self.activeTeam, 1+5*self.nTeams+11].astype('bool'),
-                                             self.state[:, 1+5*self.nTeams+12].astype('bool')))
+                            * np.logical_and(self.state[self.activeTeam, 1+5*self.nTeams+12].astype('bool'),
+                                             np.logical_not(self.state[:, 1+5*self.nTeams+11].astype('bool'))))
                          - (alphaFish
-                            * np.logical_and(self.state[self.activeTeam, 1+5*self.nTeams+13].astype('bool'),
-                                             self.state[:, 1+5*self.nTeams+14].astype('bool')))
+                            * np.logical_and(self.state[self.activeTeam, 1+5*self.nTeams+14].astype('bool'),
+                                             np.logical_not(self.state[:, 1+5*self.nTeams+13].astype('bool'))))
                          - (alphaSeafood
-                            * np.logical_and(self.state[self.activeTeam, 1+5*self.nTeams+15].astype('bool'),
-                                             self.state[:, 1+5*self.nTeams+16].astype('bool')))
+                            * np.logical_and(self.state[self.activeTeam, 1+5*self.nTeams+16].astype('bool'),
+                                             np.logical_not(self.state[:, 1+5*self.nTeams+15].astype('bool'))))
                          )
         
 

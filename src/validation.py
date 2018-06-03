@@ -33,6 +33,69 @@ class validation:
         colors = {-2: 'rgb(165,42,42)', -1:'rgb(0,0,0)', 1:'rgb(255,0,0)', 2:'rgb(0,255,0)', 3:'rgb(0,0,255)'}
         courseNames = {-2: 'no course (rescued)', -1:'party', 1:'starter', 2:'mainCourse', 3:'dessert'}
         data = []
+                                   ## add lines for the travel route of each team if applicable
+        if 'starterLocation' in dinnerTable.columns.values:
+            ## convert to numpy array for simplicity
+            locs = np.empty((5,)) ## locations for each course, includign home location and final party
+            lat = np.empty((4,2)) ## 4 distances per team with start and end
+            lng = np.empty((4,2)) ## 4 distances per team with start and end
+            for t in xrange(0,len(dinnerTable) - 1): ## -1 for final party location
+                ## get all locations and the geoCoordinates
+                locs[0] = t ## home location
+                locs[1:4] = dinnerTable.loc[t, ['starterLocation', 'mainCourseLocation', 'dessertLocation']].values
+                locs[4] = len(dinnerTable) - 1 ## final party location
+                if np.any(np.isnan(locs)): ## team is not fully seated
+                    continue
+                for l in xrange(0,4):
+                    lat[l,0] = dinnerTable.loc[locs[l], 'addressLat']
+                    lat[l,1] = dinnerTable.loc[locs[l+1], 'addressLat']
+                    lng[l,0] = dinnerTable.loc[locs[l], 'addressLng']
+                    lng[l,1] = dinnerTable.loc[locs[l+1], 'addressLng']
+                
+                data.append(go.Scattermapbox(
+                    lon = [lng[0,0], lng[0,1]],
+                    lat = [lat[0,0], lat[0,1]],
+                    name = 'route' + str(t),
+                    legendgroup = 'route' + str(t),
+                    mode = 'lines',
+                    visible = 'legendonly',
+                    showlegend = True,
+                    line = dict(color = ('rgb(22, 96, 167)'),
+                                width = 4,)
+                    ))
+                data.append(go.Scattermapbox(
+                    lon = [lng[1,0], lng[1,1]],
+                    lat = [lat[1,0], lat[1,1]],
+                    name = 'route' + str(t),
+                    legendgroup = 'route' + str(t),
+                    mode = 'lines',
+                    visible = 'legendonly',
+                    showlegend = False,
+                    line = dict(color = ('rgb(22, 96, 167)'),
+                                width = 4,)
+                    ))
+                data.append(go.Scattermapbox(
+                    lon = [lng[2,0], lng[2,1]],
+                    lat = [lat[2,0], lat[2,1]],
+                    name = 'route' + str(t),
+                    legendgroup = 'route' + str(t),
+                    mode = 'lines',
+                    visible = 'legendonly',
+                    showlegend = False,
+                    line = dict(color = ('rgb(22, 96, 167)'),
+                                width = 4,)
+                    ))
+                data.append(go.Scattermapbox(
+                    lon = [lng[3,0], lng[3,1]],
+                    lat = [lat[3,0], lat[3,1]],
+                    name = 'route' + str(t),
+                    legendgroup = 'route' + str(t),
+                    mode = 'lines',
+                    visible = 'legendonly',
+                    showlegend = False,
+                    line = dict(color = ('rgb(22, 96, 167)'),
+                                width = 4,)
+                    ))
         for course in dinnerTable.loc[:, 'assignedCourse'].unique():
             thisDat = dinnerTable.loc[dinnerTable['assignedCourse'] == course]
             
@@ -47,35 +110,8 @@ class validation:
                             size = 15
                             )
                     ))
-#        ## add lines for the travel route of each team if applicable
-#        if 'starterLocation' in dinnerTable.columns.values:
-#            ## convert to numpy array for simplicity
-#            locs = np.empty((4,)) ## locations for each course, includign home location
-#            lat = np.empty((4,2)) ## 4 distances per team with start and end
-#            lng = np.empty((4,2)) ## 4 distances per team with start and end
-#            lat[:,3] = dinnerTable.loc[len(dinnerTable)-1, 'addressLat'] ## final party location never changes
-#            lng[:,3] = dinnerTable.loc[len(dinnerTable)-1, 'addressLng'] ## final party location never changes
-#            for t in xrange(0,len(dinnerTable) - 1): ## -1 for final party location
-#                print t
-#                ## get all locations and the distances
-#                locs[0] = t ## home locationd
-#                locs[1:4] = dinnerTable.loc[t, ['starterLocation', 'mainCourseLocation', 'dessertLocation']].values
-#                for l in xrange(0,3):
-#                    pdb.set_trace()
-#                    lat[l,0] = dinnerTable.loc[locs[l], 'addressLat']
-#                    lat[l,1] = dinnerTable.loc[locs[l+1], 'addressLat']
-#                    lng[l,0] = dinnerTable.loc[locs[l], 'addressLng']
-#                    lng[l,1] = dinnerTable.loc[locs[l+1], 'addressLng']
-#                
-#                data.append(go.Scattermapbox(
-#                    lon = lng,
-#                    lat = lat,
-#                    name = 'route' + str(t),
-#                    mode = 'lines',
-#                    visible = False
-#                    ))
-                
-                
+#        pdb.set_trace()
+ 
         layout = go.Layout(
                 autosize=True,
                 hovermode='closest',

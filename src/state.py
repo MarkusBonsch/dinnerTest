@@ -30,7 +30,7 @@ class state:
         
     """
     
-    def __init__(self, data, dinnerTime, travelMode = 'transit'):
+    def __init__(self, data, dinnerTime, travelMode = 'transit', shuffleTeams = False):
         """ 
         Do some time intensive preProcessing and store the results
         Args:
@@ -39,6 +39,8 @@ class state:
             dinnerTime (datetime.datetime): time of the dinner
             travelMode (string): either 'simple' for just shortest distance at 10km/h,
                                  or on of the modes documented in See help(googlemaps.distance_matrix).
+            shuffleTeams (bool): If True, the choice, which team is seated next is random. 
+                                 Otherwise, always the subsequent team will be seated.
         """
         ## save the raw data
         self.data = data
@@ -47,7 +49,8 @@ class state:
                 self.__getTravelTime(data, dinnerTime, [travelMode]))
         ## total number of teams
         self.nTeams = len(data)
-        ## number of non-rescued teams
+        ## save the shuffle switch
+        self.shuffleTeams = shuffleTeams
         
     def initNormalState(self):
         """
@@ -211,13 +214,19 @@ class state:
         if(np.isnan(self.activeCourse)):
             self.activeTeam = np.nan
         else:
-            ## the first team for the active course 
-            ## that is seated at team -999, i.e. not seated yet and is no rescue team
-            self.activeTeam = np.where(
+            ## candidates are all teams that are seated at team -999, i.e. not seated yet and is no rescue team
+            candidates = np.where(
                                 np.logical_and(
-                                  np.amax(self.state[:,(1+self.activeCourse*self.nTeams+3):(1+(self.activeCourse+1)*self.nTeams+3)], axis=1)==0,
-                                  (1-self.state[:, 0]).astype('bool')))[0][0]
-    
+                                        np.amax(self.state[:,(1+self.activeCourse*self.nTeams+3):(1+(self.activeCourse+1)*self.nTeams+3)], axis=1)==0,
+                                        (1-self.state[:, 0]).astype('bool')))[0]
+            if not self.shuffleTeams:
+                ## first candidate
+                self.actveTeam = candidates[0]
+            else:
+                ## random team from candidates
+                self.activeTeam = np.random.choice(candidates)
+                
+                
     def __updateIsDone(self):
         """
         Determines whether the current seating round is completed, i.e. all seats are occupied or no valid actions remain
@@ -599,11 +608,11 @@ class state:
     def __classifyTravelTime(self, travelTime):
         """
         Classification is as follows:
-            travelTime < 10 min: 1,
-            travelTime < 20 min: 2,
+            travelTime < 5 min: 1,
+            travelTime < 10 min: 2,
             ...,
-            travelTime < 90 min: 9,
-            travelTime >= 90 min: 10
+            travelTime < 45 min: 9,
+            travelTime >= 50 min: 10
             travelTime == NaN: 10 
             (assuming largest distance if no travel time can be estimated)
         Args: 
@@ -612,7 +621,7 @@ class state:
             numpy array: classification
         """
         out = travelTime / 60
-        out = out // 10 + 1
+        out = out // 5 + 1
         out[out >=10] = 10
         out[np.isnan(out)] = 10
         return out   

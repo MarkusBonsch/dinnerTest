@@ -24,7 +24,7 @@ class dinnerEvent:
         assign()
     """
     
-    def __init__(self, dinnerTable, finalPartyLocation, dinnerTime, travelMode = 'simple'):
+    def __init__(self, dinnerTable, finalPartyLocation, dinnerTime, travelMode = 'simple', shuffleTeams = False):
         """
         Args:
             dinnerTable (pandas dataframe): info about all the teams in defined format
@@ -32,10 +32,12 @@ class dinnerEvent:
             dinnerTime (datetime): time of the dinner
             travelMode (string): see state.__init__ documentation for details.
                                  'simple' is safe and easy
+            shuffleTeams (bool): If True, the choice, which team is seated next is random. 
+                                 Otherwise, always the subsequent team will be seated.
         """
         self.courseAssigner = assignDinnerCourses(dinnerTable, 
                                                       finalPartyLocation)
-        self.state = state(dinnerTable, dinnerTime, travelMode)
+        self.state = state(dinnerTable, dinnerTime, travelMode, shuffleTeams)
         self.tableAssigner = randomAgent(self.state)
         self.validation = validation()
         
@@ -45,6 +47,7 @@ class dinnerEvent:
         by assigning all tables for all courses including rescue tables
         Args:
             random (bool): Whether or not to choose randomly from the best actions.
+            shuffleTeams (bool): Whether or not to random order teams when assigning.
         Returns:
             No return. The internal variable self.state is updated
         """
@@ -137,7 +140,10 @@ class dinnerEvent:
                .plotMapOfAssignedTables(dinnerTable = final[2],
                                        finalPartyLocation = self.courseAssigner.finalPartyLocation.iloc[0,0])
                .plotToFile(os.path.join(outFolder, 'map.html')))
-            
+            ## statistics of assignedCourses
+            (self.validation
+               .plotTableDistributions(dinnerTable = final[2])
+               .plotToFile(os.path.join(outFolder, 'statistics.html')))
             
         return (final, scores)
         

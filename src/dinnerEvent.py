@@ -24,7 +24,7 @@ class dinnerEvent:
         assign()
     """
     
-    def __init__(self, dinnerTable, finalPartyLocation, dinnerTime, travelMode = 'simple', shuffleTeams = False):
+    def __init__(self, dinnerTable, finalPartyLocation, dinnerTime, travelMode = 'simple', shuffleTeams = False, padSize = 50):
         """
         Args:
             dinnerTable (pandas dataframe): info about all the teams in defined format
@@ -34,10 +34,11 @@ class dinnerEvent:
                                  'simple' is safe and easy
             shuffleTeams (bool): If True, the choice, which team is seated next is random. 
                                  Otherwise, always the subsequent team will be seated.
+            padSize (int): see state.py __init__. Must be at least as high as the number of participating teams.
         """
         self.courseAssigner = assignDinnerCourses(dinnerTable, 
                                                       finalPartyLocation)
-        self.state = state(dinnerTable, dinnerTime, travelMode, shuffleTeams)
+        self.state = state(dinnerTable, dinnerTime, travelMode, shuffleTeams, padSize)
         self.tableAssigner = randomAgent(self.state)
         self.validation = validation()
         

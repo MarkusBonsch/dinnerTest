@@ -30,7 +30,7 @@ class state:
         
     """
     
-    def __init__(self, data, dinnerTime, travelMode = 'transit', shuffleTeams = False):
+    def __init__(self, data, dinnerTime, travelMode = 'transit', shuffleTeams = False, padSize = 50):
         """ 
         Do some time intensive preProcessing and store the results
         Args:
@@ -41,16 +41,23 @@ class state:
                                  or on of the modes documented in See help(googlemaps.distance_matrix).
             shuffleTeams (bool): If True, the choice, which team is seated next is random. 
                                  Otherwise, always the subsequent team will be seated.
+            padSize (int): In order to assure consistent arrays sizes, the state array is always
+                           padded with dummy teams that will never be active. This int determines the total 
+                           size of the state array. Must be larger than the number of teams in data
         """
+        if len(data) > padSize:
+            raise ValueError('padSize must be at least the number of teams in the input data.')
         ## save the raw data
         self.data = data
+        ## total number of real teams
+        self.nTeams = len(data)
+        ## size of the array
+        self.padSize = padSize
+        ## save the shuffle switch
+        self.shuffleTeams = shuffleTeams
         ## travel time between locations from google API
         self.travelTime = self.__classifyTravelTime(
                 self.__getTravelTime(data, dinnerTime, [travelMode]))
-        ## total number of teams
-        self.nTeams = len(data)
-        ## save the shuffle switch
-        self.shuffleTeams = shuffleTeams
         
     def initNormalState(self):
         """
@@ -63,60 +70,67 @@ class state:
         """
         
         ## create empty placeholder array. Default value is -999 for missing
-        self.state = (np.zeros(shape = (self.nTeams, 
-                                          1 ## 0 for rescue team yes/no
-                                        + self.nTeams ## 1 for distance from home location to all locations
-                                        + 3 ## 1+nTeams free seats for the three courses
-                                        + self.nTeams ## 1+nTeams+3: guest at table 1:n for starter
-                                        + self.nTeams ## 1+2*nTeams+3: guest at table 1:n for main course
-                                        + self.nTeams ## 1+3*nTeams+3: guest at table 1:n for main desert
-                                        + self.nTeams ## 1+4*nTeams+3 which teams have been met
-                                        + 2 ## 1+5*nTeams + 3 cat free and cat intolerant
+        self.state = (np.zeros(shape = (self.padSize, 
+                                          1 ## 0 for team status: 1 for active team, 0 for rescue team, -1 for padded team
+                                        + self.padSize ## 1 for distance from home location to all locations
+                                        + 3 ## 1+padSize free seats for the three courses
+                                        + self.padSize ## 1+padSize+3: guest at table 1:n for starter
+                                        + self.padSize ## 1+2*padSize+3: guest at table 1:n for main course
+                                        + self.padSize ## 1+3*padSize+3: guest at table 1:n for main desert
+                                        + self.padSize ## 1+4*padSize+3 which teams have been met
+                                        + 2 ## 1+5*padSize + 3 cat free and cat intolerant
                                         + 2 ## dog free and dog intolerant
                                         + 2 ## animal product free and animal product intolerant
                                         + 2 ## meat free and meat intolerant
                                         + 2 ## lactose free and lactose intolerant
                                         + 2 ## fish free and fish intolerant
                                         + 2 ## seafaood free and seafood intolerant
+                                        + 1 ## 1+5*padSize + 17 active team
+                                        + 1 ## 1+5*padSize + 18 current location
                                         ), dtype = float))
 
         ## get correct order of data by team ID
         data = self.data.sort_values('team')
 
-        ## set rescue team status
-        self.state[np.where(np.isnan(data['assignedCourse']))[0],0] = 1
-        ## set distance to all other locations (only considering transit)
-        self.state[:, 1:(1+self.nTeams)] = self.travelTime[:,:,0]
+        ## set active team status: padded teams to -1, rescue teams to 0, active teams to 1
+        self.state[:, 0] = -1
+        self.state[0:self.nTeams, 0] = 0 ## all real teams
+        self.state[np.where(~np.isnan(data['assignedCourse']))[0],0] = 1 ## active teams
+        ## set distance to all other locations
+        ## 10 for padded teams, real values for other teams
+        self.state[:, 1:(1+self.padSize)] = 10
+        self.state[0:self.nTeams, 1:(1+self.nTeams)] = self.travelTime[:,:,0]
         ## set free seats (2 for each team for the assigned course, 0 for resuced teams)
         for c in xrange(1,4):
-            hostTeams = data['assignedCourse'] == c
-            self.state[hostTeams, 1+self.nTeams+c-1] = 2
+            hostTeams = np.zeros(self.padSize, dtype = bool)
+            hostTeams[np.where(data['assignedCourse'] == c)[0]] = 1
+            self.state[hostTeams, 1+self.padSize+c-1] = 2
         ## set guest at table x for starter, mainCourse, desert
         ## all left at 0, except for assignedCourse, 
         ## where the team sits at their own table (except rescue teams)
         for team in xrange(0, self.nTeams):
-            if self.state[team,0] == 1:
-                continue ## rescue team does not sit at its own table
+            if self.state[team,0] != 1:
+                continue ## rescue teams and padded teams don't sit at their own table
             assignedCourse = int(data['assignedCourse'][team])
-            self.state[team, 1+assignedCourse*self.nTeams+3+team]   = 1
+            self.state[team, 1+assignedCourse*self.padSize+3+team]   = 1
         ## set hasMet to all 0s except for team has met itself
         for team in xrange(0, self.nTeams):
-            self.state[team, 1+4*self.nTeams+3+team] = 1
+            self.state[team, 1+4*self.padSize+3+team] = 1
         ## set intolerances etc.
-        self.state[:, 1+5*self.nTeams+3]  = data['catFree']
-        self.state[:, 1+5*self.nTeams+4]  = data['catsIntolerant']
-        self.state[:, 1+5*self.nTeams+5] = data['dogFree']
-        self.state[:, 1+5*self.nTeams+6] = data['dogsIntolerant']
-        self.state[:, 1+5*self.nTeams+7] = data['animalProductsIntolerant']
-        self.state[:, 1+5*self.nTeams+8] = data['animalProductsIntolerant']
-        self.state[:, 1+5*self.nTeams+9] = data['meatIntolerant']
-        self.state[:, 1+5*self.nTeams+10] = data['meatIntolerant']
-        self.state[:, 1+5*self.nTeams+11] = data['lactoseIntolerant']
-        self.state[:, 1+5*self.nTeams+12] = data['lactoseIntolerant']
-        self.state[:, 1+5*self.nTeams+13] = data['fishIntolerant']
-        self.state[:, 1+5*self.nTeams+14] = data['fishIntolerant']
-        self.state[:, 1+5*self.nTeams+15] = data['seafoodIntolerant']
-        self.state[:, 1+5*self.nTeams+16] = data['seafoodIntolerant']    
+        self.state[0:self.nTeams, 1+5*self.padSize+3]  = data['catFree']
+        self.state[0:self.nTeams, 1+5*self.padSize+4]  = data['catsIntolerant']
+        self.state[0:self.nTeams, 1+5*self.padSize+5] = data['dogFree']
+        self.state[0:self.nTeams, 1+5*self.padSize+6] = data['dogsIntolerant']
+        self.state[0:self.nTeams, 1+5*self.padSize+7] = data['animalProductsIntolerant']
+        self.state[0:self.nTeams, 1+5*self.padSize+8] = data['animalProductsIntolerant']
+        self.state[0:self.nTeams, 1+5*self.padSize+9] = data['meatIntolerant']
+        self.state[0:self.nTeams, 1+5*self.padSize+10] = data['meatIntolerant']
+        self.state[0:self.nTeams, 1+5*self.padSize+11] = data['lactoseIntolerant']
+        self.state[0:self.nTeams, 1+5*self.padSize+12] = data['lactoseIntolerant']
+        self.state[0:self.nTeams, 1+5*self.padSize+13] = data['fishIntolerant']
+        self.state[0:self.nTeams, 1+5*self.padSize+14] = data['fishIntolerant']
+        self.state[0:self.nTeams, 1+5*self.padSize+15] = data['seafoodIntolerant']
+        self.state[0:self.nTeams, 1+5*self.padSize+16] = data['seafoodIntolerant']    
 
         ## update other internal variables
         self.__updateActiveCourse()
@@ -137,13 +151,14 @@ class state:
             raise ValueError("Rescue state can only be initialized if normal state isDone")
         ## get correct order of data by team ID
         data = self.data.sort_values('team')
-        ## remove rescue label
-        self.state[:,0] = 0
+        ## set rescue tables to active, leave padded Tables at -1
+        self.state[np.where(self.state[:,0] == 0)[0],0] = 1
         ## set free seats for rescue teams to 1 for the assigned course
         for c in xrange(1,4):
-            hostTeams = np.logical_and(data['assignedCourse'] == c,
-                                       data['rescueTable'] == 1)
-            self.state[hostTeams, 1+self.nTeams+c-1] = 1
+            hostTeams = np.zeros(self.padSize, dtype = bool)
+            hostTeams[np.where(np.logical_and(data['assignedCourse'] == c,
+                                              data['rescueTable'] == 1))] = 1
+            self.state[hostTeams, 1+self.padSize+c-1] = 1
         ## now update everything else
         self.__updateActiveCourse()
         self.__updateActiveTeam()
@@ -172,16 +187,18 @@ class state:
         Determines the current location of each team.
         Returns:
             No return. Updates the internal variable self.currentLocations, 
-            which is a 1d array of length nTeams, containing the current location given the active course
+            which is a 1d array of length padSize, containing the current location given the active course.
+            Also updates the corresponding column of the state array
         """
-        locations = np.empty((self.nTeams,))
-        locations[:] = np.arange(self.nTeams) ## starting locations
+        locations = np.empty((self.padSize,))
+        locations[:] = np.arange(self.padSize) ## starting locations
         for c in xrange(1,self.activeCourse+1):
-            matches = np.where(self.state[:,(1+c*self.nTeams+3):(1+(c+1)*self.nTeams+3)]==1)
+            matches = np.where(self.state[:,(1+c*self.padSize+3):(1+(c+1)*self.padSize+3)]==1)
             if len(matches[0]) > self.nTeams:
                 raise ValueError("Internal error. One team sits at multiple tables")
             locations[matches[0]] = matches[1]
         self.currentLocations = locations
+        self.state[:, 1+5*self.padSize + 17] = locations
             
     def __updateActiveCourse(self):
         """
@@ -195,10 +212,10 @@ class state:
         self.activeCourse = np.nan
         for c in reversed(xrange(1,4)):
             ## going backwards through the courses to determine the first one with need
-            freeSeatCourse = self.state[:, 1+self.nTeams-1+c].sum() > 0
+            freeSeatCourse = self.state[:, 1+self.padSize-1+c].sum() > 0
             hasNeedCourse = np.any(np.logical_and(
-                                     np.amax(self.state[:,(1+c*self.nTeams+3):(1+(c+1)*self.nTeams+3)], axis=1)==0,
-                                     (1-self.state[:,0]).astype('bool')))
+                                     np.amax(self.state[:,(1+c*self.padSize+3):(1+(c+1)*self.padSize+3)], axis=1)==0,
+                                     self.state[:,0] == 1))
             if freeSeatCourse & hasNeedCourse:
                 self.activeCourse = c
                 break
@@ -211,20 +228,26 @@ class state:
             No return. Updates the internal variable self.activeTeam
             Integer with the team number. np.nan if all teams are seated for all courses
         """
+        ## reset active team column of state variable
+        self.state[:, 1+5*self.padSize+18] = 0
+        
         if(np.isnan(self.activeCourse)):
             self.activeTeam = np.nan
         else:
             ## candidates are all teams that are seated at team -999, i.e. not seated yet and is no rescue team
             candidates = np.where(
                                 np.logical_and(
-                                        np.amax(self.state[:,(1+self.activeCourse*self.nTeams+3):(1+(self.activeCourse+1)*self.nTeams+3)], axis=1)==0,
-                                        (1-self.state[:, 0]).astype('bool')))[0]
+                                        np.amax(self.state[:,(1+self.activeCourse*self.padSize+3):(1+(self.activeCourse+1)*self.padSize+3)], axis=1)==0,
+                                        self.state[:,0] == 1))[0]
             if not self.shuffleTeams:
                 ## first candidate
-                self.actveTeam = candidates[0]
+                self.activeTeam = candidates[0]
             else:
                 ## random team from candidates
                 self.activeTeam = np.random.choice(candidates)
+            
+            self.state[self.activeTeam, 1+5*self.padSize+18] = 1
+            
                 
                 
     def __updateIsDone(self):
@@ -245,11 +268,11 @@ class state:
         The action is parametrized as the teamId where the next team can potentially be seated for the active course
         Returns:
             No return. Updates the internal variable self.validActions as follows:
-            1d array of integers of length nTeams: 1 if team is valid action, 0 otherwise
+            1d array of integers of length padSize: 1 if team is valid action, 0 otherwise
         """
-        self.validActions = np.zeros((self.nTeams,))
+        self.validActions = np.zeros((self.padSize,))
         if not self.isDone:
-            self.validActions[self.state[:,1+self.nTeams-1+self.activeCourse] > 0] = 1
+            self.validActions[self.state[:,1+self.padSize-1+self.activeCourse] > 0] = 1
             
     def __updateRewards(self):
         """
@@ -257,7 +280,7 @@ class state:
         Determines the rewards for all actions given the current state.
         Return:
             no return. Updates the internal variable self.rewards, which is a 1d array
-            of length nTeams with a reward for placing the next team to any of the teams.
+            of length padSize with a reward for placing the next team to any of the teams.
         Details:
             The reward is calculated as follows
             r(state, action) =   alphaMeet * number of new persons met
@@ -285,26 +308,26 @@ class state:
                          - alphaInvalid * (1 - self.validActions)
                          - alphaDist    * self.__getNewDistances()
                          - (alphaCat     
-                            * np.logical_and(self.state[self.activeTeam, 1+5*self.nTeams+4].astype('bool'),
-                                             np.logical_not(self.state[:, 1+5*self.nTeams+3].astype('bool'))))
+                            * np.logical_and(self.state[self.activeTeam, 1+5*self.padSize+4].astype('bool'),
+                                             np.logical_not(self.state[:, 1+5*self.padSize+3].astype('bool'))))
                          - (alphaDog     
-                            * np.logical_and(self.state[self.activeTeam, 1+5*self.nTeams+6].astype('bool'),
-                                             np.logical_not(self.state[:, 1+5*self.nTeams+5].astype('bool'))))
+                            * np.logical_and(self.state[self.activeTeam, 1+5*self.padSize+6].astype('bool'),
+                                             np.logical_not(self.state[:, 1+5*self.padSize+5].astype('bool'))))
                          - (alphaAnimalProduct
-                            * np.logical_and(self.state[self.activeTeam, 1+5*self.nTeams+8].astype('bool'),
-                                             np.logical_not(self.state[:, 1+5*self.nTeams+7].astype('bool'))))
+                            * np.logical_and(self.state[self.activeTeam, 1+5*self.padSize+8].astype('bool'),
+                                             np.logical_not(self.state[:, 1+5*self.padSize+7].astype('bool'))))
                          - (alphaMeat
-                            * np.logical_and(self.state[self.activeTeam, 1+5*self.nTeams+10].astype('bool'),
-                                             np.logical_not(self.state[:, 1+5*self.nTeams+9].astype('bool'))))
+                            * np.logical_and(self.state[self.activeTeam, 1+5*self.padSize+10].astype('bool'),
+                                             np.logical_not(self.state[:, 1+5*self.padSize+9].astype('bool'))))
                          - (alphaLactose
-                            * np.logical_and(self.state[self.activeTeam, 1+5*self.nTeams+12].astype('bool'),
-                                             np.logical_not(self.state[:, 1+5*self.nTeams+11].astype('bool'))))
+                            * np.logical_and(self.state[self.activeTeam, 1+5*self.padSize+12].astype('bool'),
+                                             np.logical_not(self.state[:, 1+5*self.padSize+11].astype('bool'))))
                          - (alphaFish
-                            * np.logical_and(self.state[self.activeTeam, 1+5*self.nTeams+14].astype('bool'),
-                                             np.logical_not(self.state[:, 1+5*self.nTeams+13].astype('bool'))))
+                            * np.logical_and(self.state[self.activeTeam, 1+5*self.padSize+14].astype('bool'),
+                                             np.logical_not(self.state[:, 1+5*self.padSize+13].astype('bool'))))
                          - (alphaSeafood
-                            * np.logical_and(self.state[self.activeTeam, 1+5*self.nTeams+16].astype('bool'),
-                                             np.logical_not(self.state[:, 1+5*self.nTeams+15].astype('bool'))))
+                            * np.logical_and(self.state[self.activeTeam, 1+5*self.padSize+16].astype('bool'),
+                                             np.logical_not(self.state[:, 1+5*self.padSize+15].astype('bool'))))
                          )
         
 
@@ -333,33 +356,33 @@ class state:
         
         ## update the relevant entries of the self.state variable
         # where the active team is guest for the active course
-        self.state[self.activeTeam, 1+self.activeCourse*self.nTeams+3+action] = 1
+        self.state[self.activeTeam, 1+self.activeCourse*self.padSize+3+action] = 1
         # number of free seats for the action team
-        self.state[action, 1+self.nTeams-1+self.activeCourse] -=1
-        if self.state[action, 1+self.nTeams-1+self.activeCourse] < 0:
+        self.state[action, 1+self.padSize-1+self.activeCourse] -=1
+        if self.state[action, 1+self.padSize-1+self.activeCourse] < 0:
             raise ValueError("Internal error: negative number of free seats")
         # remember that active team has met action team and all teams that are already
         # at the action table and vice versa.
-        sittingTeams = np.where(self.state[:, 1+self.activeCourse * self.nTeams + 3 + action] > 0)[0]
-        self.state[self.activeTeam, 1+4*self.nTeams+3+sittingTeams] = 1
-        self.state[sittingTeams, 1+4*self.nTeams+3+self.activeTeam] = 1
+        sittingTeams = np.where(self.state[:, 1+self.activeCourse * self.padSize + 3 + action] > 0)[0]
+        self.state[self.activeTeam, 1+4*self.padSize+3+sittingTeams] = 1
+        self.state[sittingTeams, 1+4*self.padSize+3+self.activeTeam] = 1
         # update xxx'free' if a table becomes e.g. meatFree 
         # because activeTeam is meat intolerant.
         # animalProducts
-        if self.state[self.activeTeam,1+5*self.nTeams+8] > 0:
-            self.state[action, 1+5*self.nTeams+7] = 1
+        if self.state[self.activeTeam,1+5*self.padSize+8] > 0:
+            self.state[action, 1+5*self.padSize+7] = 1
         # meat
-        if self.state[self.activeTeam,1+5*self.nTeams+10] > 0:
-            self.state[action, 1+5*self.nTeams+9] = 1
+        if self.state[self.activeTeam,1+5*self.padSize+10] > 0:
+            self.state[action, 1+5*self.padSize+9] = 1
         # lactose
-        if self.state[self.activeTeam,1+5*self.nTeams+12] > 0:
-            self.state[action, 1+5*self.nTeams+11] = 1
+        if self.state[self.activeTeam,1+5*self.padSize+12] > 0:
+            self.state[action, 1+5*self.padSize+11] = 1
         # fish
-        if self.state[self.activeTeam,1+5*self.nTeams+14] > 0:
-            self.state[action, 1+5*self.nTeams+13] = 1
+        if self.state[self.activeTeam,1+5*self.padSize+14] > 0:
+            self.state[action, 1+5*self.padSize+13] = 1
         # seafood
-        if self.state[self.activeTeam,1+5*self.nTeams+16] > 0:
-            self.state[action, 1+5*self.nTeams+15] = 1   
+        if self.state[self.activeTeam,1+5*self.padSize+16] > 0:
+            self.state[action, 1+5*self.padSize+15] = 1   
         ## update other internal variables (important: after state)
         self.__updateActiveCourse()
         self.__updateActiveTeam()
@@ -368,7 +391,6 @@ class state:
             self.__updateCurrentLocations()
             self.__updateValidActions()
             if np.all(self.validActions == 0):
-                pdb.set_trace()
                 raise ValueError('Internal error: no valid actions remain but state.isDone = False')
             self.__updateRewards()
             
@@ -380,7 +402,7 @@ class state:
                 1. 1d array with nTeams entries giving the number of persons met
                 2. int giving the total number of persons met
         """
-        teamMet = self.state[:, (1+4*self.nTeams+3):(1+5*self.nTeams+3)].sum(axis=1)
+        teamMet = self.state[0:self.nTeams, (1+4*self.padSize+3):(1+5*self.padSize+3)].sum(axis=1)
         return (teamMet, teamMet.sum())
     
     def getDistanceScore(self):
@@ -398,7 +420,7 @@ class state:
         tmp[:,:] = -999
         tmp[:,0] = np.arange(self.nTeams) ## starting location is at home
         for c in xrange(1,4):
-            thisLoc = np.where(self.state[:,(1+c*self.nTeams+3):(1+(c+1)*self.nTeams+3)] == 1)
+            thisLoc = np.where(self.state[:,(1+c*self.padSize+3):(1+(c+1)*self.padSize+3)] == 1)
             tmp[thisLoc[0],c] = thisLoc[1]
         tmp = tmp.astype('int') ## for using as index
         ## get distance from place at course  to place at course c+1 for team t
@@ -418,7 +440,7 @@ class state:
                 1. 1d array with nTeams bool entries telling if the team was properly assigned for each course
                 2. int giving the total number of teams that were not properly assigned.
         """
-        badTeamFlag = self.state[:, (1+self.nTeams+3):(1+4*self.nTeams+3)].sum(axis = 1) < 3
+        badTeamFlag = self.state[0:self.nTeams, (1+self.padSize+3):(1+4*self.padSize+3)].sum(axis = 1) < 3
         return (badTeamFlag, badTeamFlag.astype('int').sum())
         
         
@@ -445,19 +467,18 @@ class state:
         """
         if not self.isDone:
             raise ValueError('Export only possible on finished state')
-        if np.any(self.state[:,0] == 1):
+        if np.any(self.state[:,0] == 0):
             raise ValueError('Export only possible if rescue Teams have been assigned')
-        nTeams = len(self.state)
-        item1  = np.empty((nTeams, 3))
+        item1  = np.empty((self.nTeams, 3))
         item1[:,:] = np.nan
         for c in xrange(1,4):
-            matches = np.where(self.state[:,(1+c*nTeams+3):(1+(c+1)*nTeams+3)]==1)
+            matches = np.where(self.state[:,(1+c*self.padSize+3):(1+(c+1)*self.padSize+3)]==1)
             item1[matches[0],c-1] = matches[1]
         item1 = pd.DataFrame(item1)
         
         item2=[]
         maxGuests = 0
-        for i in xrange(0, nTeams):
+        for i in xrange(0, self.nTeams):
             thisGuests = np.where(item1 == i)[0]
             maxGuests = max(maxGuests, len(thisGuests))
             item2.append(thisGuests)
@@ -468,34 +489,34 @@ class state:
         item3['dessertLocation'] = item1.iloc[:,2]
         item3['nPeopleMet'] = self.getMeetScore()[0]
         item3['distanceCovered'] = self.getDistanceScore()[0]
-        missedIntolerances = np.zeros((nTeams,))
-        for t in xrange(0,nTeams):
+        missedIntolerances = np.zeros((self.nTeams,))
+        for t in xrange(0,self.nTeams):
             hosts = item1.iloc[t].as_matrix()
             hosts = hosts[~np.isnan(hosts)]
-            intoleranceIdx = np.where(self.state[t, [1+5*nTeams+4,
-                                                     1+5*nTeams+6,
-                                                     1+5*nTeams+8,
-                                                     1+5*nTeams+10,
-                                                     1+5*nTeams+12,
-                                                     1+5*nTeams+14,
-                                                     1+5*nTeams+16
+            intoleranceIdx = np.where(self.state[t, [1+5*self.padSize+4,
+                                                     1+5*self.padSize+6,
+                                                     1+5*self.padSize+8,
+                                                     1+5*self.padSize+10,
+                                                     1+5*self.padSize+12,
+                                                     1+5*self.padSize+14,
+                                                     1+5*self.padSize+16
                                                      ]] > 0)[0]
             if not len(intoleranceIdx):
                 continue
             ## get the info if the hosts are free on intolerance classes
-            freeIdx = 1+5*nTeams+3+2*intoleranceIdx
+            freeIdx = 1+5*self.padSize+3+2*intoleranceIdx
             freeNess = (self.state[hosts.astype('int')[:,None], freeIdx]## weird indexing, see https://stackoverflow.com/questions/22927181/selecting-specific-rows-and-columns-from-numpy-array
                        .sum(axis=0))
             missedIntolerances[t] = (3-freeNess).sum()
         item3['nMissedIntolerances'] = missedIntolerances
         item3['teamMissing'] = self.getMissingTeamScore()[0]
             
-        nForcedFree = np.zeros((nTeams,))
+        nForcedFree = np.zeros((self.nTeams,))
         for i in xrange(0,5):
             ## loop over 5 intolerances. Excluding cat and dog 
             ## because you can't force cat and dog free 
-            nForcedFree += np.logical_and(self.state[:, 1+5*nTeams+7+2*i].astype('bool'),
-                                          self.state[:, 1+5*nTeams+8+2*i].astype('bool') == False)
+            nForcedFree += np.logical_and(self.state[0:self.nTeams, 1+5*self.padSize+7+2*i].astype('bool'),
+                                          self.state[0:self.nTeams, 1+5*self.padSize+8+2*i].astype('bool') == False)
         item3['nForcedFree'] = nForcedFree
         
         item4 = {}
@@ -535,11 +556,11 @@ class state:
         Determines, how many new persons would be met when seating the activePerson
         at all possible tables.
         Returns: 
-            1d array of lenth nTeams with the number of new people met when seating the active person
+            1d array of lenth padSize with the number of new people met when seating the active person
             to the corresponding team. 0 if team is not a valid action.
         """
         ## just fo code brevity
-        nT = self.nTeams
+        nT = self.padSize
         aC = self.activeCourse
         out = np.zeros((nT,))
         for  action in np.where(self.validActions == 1)[0]:
@@ -562,11 +583,11 @@ class state:
         Determines the distance class from the current location of the active team
         to all potential tables.
         Returns:
-            1d array of length nTeams with the distance classes from the active team to
+            1d array of length padSize with the distance classes from the active team to
             each table (team)
         """
         fromLoc = int(self.currentLocations[self.activeTeam])
-        out = self.state[(fromLoc), 1:1+self.nTeams]
+        out = self.state[(fromLoc), 1:1+self.padSize]
         return out
         
     def __getTravelTime(self, data, dinnerTime, travelModes = ['transit', 'bicycling', 'driving']):
@@ -583,10 +604,9 @@ class state:
                  Note that the result is symmetrical, i.e. travelTime[a,b, "walking"] = travelTime[b,a, "walking"]
         """
         myGp = gp.geoProcessing()
-        nTeams     = len(data)
-        distMatrix = np.zeros(shape = (nTeams, nTeams, len(travelModes)), dtype = float)
-        for s in xrange(0, nTeams):
-            for e in xrange(s, nTeams):
+        distMatrix = np.zeros(shape = (self.nTeams, self.nTeams, len(travelModes)), dtype = float)
+        for s in xrange(0, self.nTeams):
+            for e in xrange(s, self.nTeams):
                 origin = dict(lat = data.loc[s, 'addressLat'].item(),
                               lng = data.loc[s, 'addressLng'].item())
                 destination = dict(lat = data.loc[e, 'addressLat'].item(),
@@ -599,7 +619,7 @@ class state:
                                               departureTime = dinnerTime) 
                 
         ## fill the reverse entries with the same values
-        for s in xrange(1, nTeams):
+        for s in xrange(1, self.nTeams):
             for e in xrange(0, s):
                 distMatrix[s, e, :] = distMatrix[e, s, :]
         

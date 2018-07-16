@@ -12,7 +12,7 @@ from src.dinnerEvent import dinnerEvent
 import pandas as pd
 from datetime import datetime
 
-excel_file = pd.ExcelFile('test/dinnerTest20HighIntolerance.xlsx')
+excel_file = pd.ExcelFile('test/dinnerTest18NoIntolerance.xlsx')
 #finalDinnerLocation=xl.sheet_names[0]
 dinner = pd.read_excel(excel_file,'teams')
 finalPartyLocation = pd.read_excel(excel_file,'final_party_location',header=None)
@@ -20,9 +20,9 @@ dinnerTime = datetime(2018, 07, 01, 20, 0, 0)
 
 myEvent = dinnerEvent(dinnerTable = dinner, 
                       finalPartyLocation=finalPartyLocation, 
-                      dinnerTime=dinnerTime, travelMode='simple', shuffleTeams = True)
+                      dinnerTime=dinnerTime, travelMode='simple', shuffleTeams = False, padSize = 18)
 
-test = myEvent.assign(repCourseAssign = 5, 
-                      repTableAssign = 5, outFolder='test/res20HighIntoleranceShuffle', overwrite = True)
+test = myEvent.assign(repCourseAssign = 8, 
+                      repTableAssign = 10, outFolder='test/res18NoIntoleranceNew', overwrite = True)
 
 

@@ -139,7 +139,7 @@ class dinnerEvent:
             ## map with locations and other fancy stuff
             (self.validation
                .plotMapOfAssignedTables(dinnerTable = final[2],
-                                       finalPartyLocation = self.courseAssigner.finalPartyLocation.iloc[0,0])
+                                       finalPartyLocation = self.courseAssigner.finalPartyLocation)
                .plotToFile(os.path.join(outFolder, 'map.html')))
             ## statistics of assignedCourses
             (self.validation

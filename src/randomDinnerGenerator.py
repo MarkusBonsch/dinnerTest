@@ -23,12 +23,16 @@ class randomDinnerGenerator:
                  ,catsIntolerantProbability
                  ,dogFreeProbability
                  ,catFreeProbability
-                 ,verbose):
+                 ,verbose
+                 ,checkValidity = True): ## set to False to get independent from googlemaps):
         self.numberOfTeams = numberOfTeams
         self.centerAddress = centerAddress
         self.radiusInMeter = radiusInMeter
         self.geop = gp.geoProcessing()
-        self.centerLatLng = self.geop.address2LatLng(self.centerAddress)
+        if type(centerAddress) == str:
+            self.centerLatLng = self.geop.address2LatLng(self.centerAddress)
+        else:
+            self.centerLatLng = centerAddress
         if len(self.centerLatLng)==0:
             print("Center address not valid! Exit!")
             sys.exit()
@@ -45,6 +49,7 @@ class randomDinnerGenerator:
         self.catsIntolerantProbability           = catsIntolerantProbability
         self.dogFreeProbability                  = dogFreeProbability
         self.catFreeProbability                  = catFreeProbability
+        self.checkValidity = checkValidity
         self.verbose = verbose
 
     def generateDinner(self):
@@ -117,7 +122,10 @@ class randomDinnerGenerator:
             randDistance = rd.randrange(0,self.radiusInMeter)
             newLoc = VincentyDistance( (randDistance+0.1)/1000.).destination(origin, randAngle)
             lat, lng = newLoc.latitude, newLoc.longitude
-            validAddress = self.geop.isValidGeocode(lat,lng,self.verbose)
+            if self.checkValidity:
+                validAddress = self.geop.isValidGeocode(lat,lng,self.verbose)
+            else:
+                validAddress = True
             if not validAddress:
                 continue
             else:

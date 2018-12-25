@@ -598,7 +598,10 @@ class state:
             data (list of dicts): one entry per team with keys 'addressLat' and 'addressLng'.
             dinnerTime (datetime.datetime): time of the dinner.
             travelModes (list): Travel time will be calculated for each of the travelModes
-                                 listed here. For valid options, see help(googlemaps.distance_matrix)
+                                 listed here. For valid options, see help(googlemaps.distance_matrix).
+                                 An additional valid option is 'simple' which takes the 
+                                 distance divided by 10, assuming that you can go 
+                                 10 kilometers per hour
         Returns: A numpy array with three dimensions. dim = (nTeams, nTeams, len(travelModes)). 
                  The values are travel times in seconds for each pair of locations and travel mode.
                  Note that the result is symmetrical, i.e. travelTime[a,b, "walking"] = travelTime[b,a, "walking"]

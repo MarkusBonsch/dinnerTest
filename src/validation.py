@@ -27,7 +27,7 @@ class validation:
             tmp['addressLat'] = tmp.pop('lat')
             tmp['addressLng'] = tmp.pop('lng')
         else:
-            tmp = {'addressLat' : finalPartyLocation[1].iloc[0], 'addressLng' : finalPartyLocation[0].iloc[0]}
+            tmp = {'addressLat' : finalPartyLocation[0].iloc[0], 'addressLng' : finalPartyLocation[1].iloc[0]}
         tmp['assignedCourse'] = -1
         dinnerTable = dinnerTable.append(tmp, ignore_index = True)
         ## convert nan course to -2

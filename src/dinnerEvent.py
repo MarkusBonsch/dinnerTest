@@ -53,12 +53,8 @@ class dinnerEvent:
             No return. The internal variable self.state is updated
         """
         
-        self.state.initNormalState()
+        self.state.reset()
         while not self.state.isDone: 
-            action = self.tableAssigner.chooseAction(self.state, random=random)
-            self.state.update(action)
-        self.state.initRescueState()
-        while not self.state.isDone:
             action = self.tableAssigner.chooseAction(self.state, random=random)
             self.state.update(action)
         return copy.deepcopy(self.state.state)

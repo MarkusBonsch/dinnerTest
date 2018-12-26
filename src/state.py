@@ -58,6 +58,8 @@ class state:
         ## travel time between locations from google API
         self.travelTime = self.__classifyTravelTime(
                 self.__getTravelTime(data, dinnerTime, [travelMode]))
+        ## bool to determine, whether we are already in the phase of assigning resuced teams
+        self.rescueMode = False
         
     def initNormalState(self):
         """
@@ -91,6 +93,9 @@ class state:
 
         ## get correct order of data by team ID
         data = self.data.sort_values('team')
+        
+        ## reset rescue mode
+        self.rescueMode = False
 
         ## set active team status: padded teams to -1, rescue teams to 0, active teams to 1
         self.state[:, 0] = -1
@@ -160,6 +165,7 @@ class state:
                                               data['rescueTable'] == 1))] = 1
             self.state[hostTeams, 1+self.padSize+c-1] = 1
         ## now update everything else
+        self.rescueMode = True
         self.__updateActiveCourse()
         self.__updateActiveTeam()
         self.__updateIsDone()  
@@ -167,6 +173,12 @@ class state:
             self.__updateCurrentLocations()
             self.__updateValidActions()
             self.__updateRewards()
+            
+    def reset(self):
+        """
+        Initializes the state to the start where no team is seated yet.
+        """
+        self.initNormalState()
         
     def updateAssignedCourses(self, data):
         """
@@ -179,7 +191,7 @@ class state:
                 .equals(self.data[['team', 'addressLat', 'addressLng']])):
             raise ValueError("Incompatible data. Not possible to update assignedCourses")
         self.data['assignedCourse'] = data['assignedCourse']
-        self.initNormalState()
+        self.reset()
         
                 
     def __updateCurrentLocations(self):
@@ -334,11 +346,13 @@ class state:
     def update(self, action):
         """ 
         Updates all relevant variables according to the chosen action.
+        When all non-rescued teams are seated, the rescue state is initialized automatically.
+        When all assignment is over, self.isDone is set to True
         Args: 
             action (float): the id of the team that will host 
             self.activeTeam for self.activeCourse
         Returns:
-            No return. self.state and oter variables are updated
+            No return. self.state and other variables are updated
         Details:
             If a meat intolerant person is seated to a non meat-free table, 
             the table becomes meat free because the cook has to provide meat
@@ -393,6 +407,10 @@ class state:
             if np.all(self.validActions == 0):
                 raise ValueError('Internal error: no valid actions remain but state.isDone = False')
             self.__updateRewards()
+        if self.isDone and not self.rescueMode:
+#            pdb.set_trace()
+            ## normal seating is over, start rescue phase
+            self.initRescueState()
             
     def getMeetScore(self):
         """

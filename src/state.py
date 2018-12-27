@@ -9,13 +9,14 @@ Everything around the state: reward update, etc.
 """
 
 import geoProcessing as gp
+import environment as env
 import numpy as np
 import pandas as pd
 import copy
 import os
 import pdb
 
-class state:
+class state(env.environment):
     """
     Contains the environment state.
     Most important variables:
@@ -38,7 +39,7 @@ class state:
                                   information.
             dinnerTime (datetime.datetime): time of the dinner
             travelMode (string): either 'simple' for just shortest distance at 10km/h,
-                                 or on of the modes documented in See help(googlemaps.distance_matrix).
+                                 or one of the modes documented in See help(googlemaps.distance_matrix).
             shuffleTeams (bool): If True, the choice, which team is seated next is random. 
                                  Otherwise, always the subsequent team will be seated.
             padSize (int): In order to assure consistent arrays sizes, the state array is always
@@ -141,7 +142,7 @@ class state:
         self.__updateActiveCourse()
         self.__updateActiveTeam()
         self.__updateIsDone()  
-        if not self.isDone:
+        if not self.isDone():
             self.__updateCurrentLocations()
             self.__updateValidActions()
             self.__updateRewards()
@@ -152,7 +153,7 @@ class state:
         Return:
             No return, updates the variable self.state
         """
-        if not self.isDone:
+        if not self.isDone():
             raise ValueError("Rescue state can only be initialized if normal state isDone")
         ## get correct order of data by team ID
         data = self.data.sort_values('team')
@@ -169,7 +170,7 @@ class state:
         self.__updateActiveCourse()
         self.__updateActiveTeam()
         self.__updateIsDone()  
-        if not self.isDone:
+        if not self.isDone():
             self.__updateCurrentLocations()
             self.__updateValidActions()
             self.__updateRewards()
@@ -270,9 +271,15 @@ class state:
             (Boolean)
         """
         if np.isnan(self.activeCourse):
-            self.isDone = True
+            self.done = True
         else:
-            self.isDone = False
+            self.done = False
+    
+    def isDone(self):
+        """ 
+        checks whether everything is done
+        """
+        return self.done
         
     def __updateValidActions(self):
         """
@@ -283,7 +290,7 @@ class state:
             1d array of integers of length padSize: 1 if team is valid action, 0 otherwise
         """
         self.validActions = np.zeros((self.padSize,))
-        if not self.isDone:
+        if not self.isDone():
             self.validActions[self.state[:,1+self.padSize-1+self.activeCourse] > 0] = 1
             
     def __updateRewards(self):
@@ -401,13 +408,13 @@ class state:
         self.__updateActiveCourse()
         self.__updateActiveTeam()
         self.__updateIsDone()  
-        if not self.isDone:
+        if not self.isDone():
             self.__updateCurrentLocations()
             self.__updateValidActions()
             if np.all(self.validActions == 0):
                 raise ValueError('Internal error: no valid actions remain but state.isDone = False')
             self.__updateRewards()
-        if self.isDone and not self.rescueMode:
+        if self.isDone() and not self.rescueMode:
 #            pdb.set_trace()
             ## normal seating is over, start rescue phase
             self.initRescueState()
@@ -483,7 +490,7 @@ class state:
                 item5 (numpy ndArray) raw data (self.state
             If desired and possible, writes the file
         """
-        if not self.isDone:
+        if not self.isDone():
             raise ValueError('Export only possible on finished state')
         if np.any(self.state[:,0] == 0):
             raise ValueError('Export only possible if rescue Teams have been assigned')

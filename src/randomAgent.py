@@ -32,7 +32,7 @@ class randomAgent:
                 the chosen action, i.e. the teamId where the state.activeTeam is seated
                 for the state.activeCourse. np.nan if state.isDone
         """
-        if state.isDone:
+        if state.isDone():
             return np.nan
         ## get indices of rewards in decreasing order
         orderAll = np.argsort(-state.rewards)

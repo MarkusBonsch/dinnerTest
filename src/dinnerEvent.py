@@ -54,7 +54,7 @@ class dinnerEvent:
         """
         
         self.state.reset()
-        while not self.state.isDone: 
+        while not self.state.isDone(): 
             action = self.tableAssigner.chooseAction(self.state, random=random)
             self.state.update(action)
         return copy.deepcopy(self.state.state)

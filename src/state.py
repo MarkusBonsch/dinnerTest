@@ -419,6 +419,12 @@ class state(env.environment):
             ## normal seating is over, start rescue phase
             self.initRescueState()
             
+    def getRewards(self):
+        """
+        Returns a vector with the rewards for all actions.
+        """
+        return self.rewards
+            
     def getMeetScore(self):
         """
         Calculates, how many persons each team has met and total number of persons met
@@ -468,6 +474,59 @@ class state(env.environment):
         badTeamFlag = self.state[0:self.nTeams, (1+self.padSize+3):(1+4*self.padSize+3)].sum(axis = 1) < 3
         return (badTeamFlag, badTeamFlag.astype('int').sum())
         
+    def getMissedIntoleranceScore(self):
+        """
+        Calculates how many intolerances have been violated.
+        Returns:
+            tuple with two entries:
+                1. 1d array with nTeam entries telling how many intolerances 
+                   have been violated for each team
+                2. int giving the total number of missed intolerances
+        """
+        item1  = np.empty((self.nTeams, 3))
+        item1[:,:] = np.nan
+        for c in xrange(1,4):
+            matches = np.where(self.state[:,(1+c*self.padSize+3):(1+(c+1)*self.padSize+3)]==1)
+            item1[matches[0],c-1] = matches[1]
+        item1 = pd.DataFrame(item1)
+        missedIntolerances = np.zeros((self.nTeams,))
+        for t in xrange(0,self.nTeams):
+            hosts = item1.iloc[t].as_matrix()
+            hosts = hosts[~np.isnan(hosts)]
+            intoleranceIdx = np.where(self.state[t, [1+5*self.padSize+4,
+                                                     1+5*self.padSize+6,
+                                                     1+5*self.padSize+8,
+                                                     1+5*self.padSize+10,
+                                                     1+5*self.padSize+12,
+                                                     1+5*self.padSize+14,
+                                                     1+5*self.padSize+16
+                                                     ]] > 0)[0]
+            if not len(intoleranceIdx):
+                continue
+            ## get the info if the hosts are free on intolerance classes
+            freeIdx = 1+5*self.padSize+3+2*intoleranceIdx
+            freeNess = (self.state[hosts.astype('int')[:,None], freeIdx]## weird indexing, see https://stackoverflow.com/questions/22927181/selecting-specific-rows-and-columns-from-numpy-array
+                       .sum(axis=0))
+            missedIntolerances[t] = (3-freeNess).sum()
+        return (missedIntolerances, missedIntolerances.sum())
+        
+    def getScore(self, meetScale = 1, distScale = 0.5, missedScale = 100, intoleranceScale = 50):
+        """
+        returns the final score of a game.
+        Args:
+            meetScale (float): scaling factor for people met score
+            distScale (float): scaling factor for distance score
+            missedScale (float): scaling factor for missing team score
+            intoleranceScale (float): scaling factor for missed intolerance score
+        Returns:
+            int: the total game score
+        """
+        
+        score = (meetScale * self.getMeetScore()[1] 
+                 - distScale * self.getDistanceScore()[1]
+                 - missedScale * self.getMissingTeamScore()[1]
+                 - intoleranceScale * self.getMissedIntoleranceScore()[1])
+        return score
         
     def export(self, fileName = None, overwrite = False):
         """ 
@@ -514,26 +573,7 @@ class state(env.environment):
         item3['dessertLocation'] = item1.iloc[:,2]
         item3['nPeopleMet'] = self.getMeetScore()[0]
         item3['distanceCovered'] = self.getDistanceScore()[0]
-        missedIntolerances = np.zeros((self.nTeams,))
-        for t in xrange(0,self.nTeams):
-            hosts = item1.iloc[t].as_matrix()
-            hosts = hosts[~np.isnan(hosts)]
-            intoleranceIdx = np.where(self.state[t, [1+5*self.padSize+4,
-                                                     1+5*self.padSize+6,
-                                                     1+5*self.padSize+8,
-                                                     1+5*self.padSize+10,
-                                                     1+5*self.padSize+12,
-                                                     1+5*self.padSize+14,
-                                                     1+5*self.padSize+16
-                                                     ]] > 0)[0]
-            if not len(intoleranceIdx):
-                continue
-            ## get the info if the hosts are free on intolerance classes
-            freeIdx = 1+5*self.padSize+3+2*intoleranceIdx
-            freeNess = (self.state[hosts.astype('int')[:,None], freeIdx]## weird indexing, see https://stackoverflow.com/questions/22927181/selecting-specific-rows-and-columns-from-numpy-array
-                       .sum(axis=0))
-            missedIntolerances[t] = (3-freeNess).sum()
-        item3['nMissedIntolerances'] = missedIntolerances
+        item3['nMissedIntolerances'] = self.getMissedIntoleranceScore()[0]
         item3['teamMissing'] = self.getMissingTeamScore()[0]
             
         nForcedFree = np.zeros((self.nTeams,))

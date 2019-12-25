@@ -181,6 +181,12 @@ class state(env.environment):
         """
         self.initNormalState()
         
+    def getState(self):
+        """
+        returns the current state
+        """
+        return self.state
+        
     def updateAssignedCourses(self, data):
         """
         Updates the input data with new assigned tables. The state is reset and 
@@ -293,6 +299,12 @@ class state(env.environment):
         if not self.isDone():
             self.validActions[self.state[:,1+self.padSize-1+self.activeCourse] > 0] = 1
             
+    def getValidActions(self):
+        """ 
+        Returns a vector with the indices of the valid actions
+        """
+        return np.where(self.validActions == 1)[0]
+        
     def __updateRewards(self):
         """
         This is, where the main logic resides.
@@ -348,6 +360,8 @@ class state(env.environment):
                             * np.logical_and(self.state[self.activeTeam, 1+5*self.padSize+16].astype('bool'),
                                              np.logical_not(self.state[:, 1+5*self.padSize+15].astype('bool'))))
                          )
+        if self.isDone():
+            self.rewards = 0 * self.rewards
         
 
     def update(self, action):

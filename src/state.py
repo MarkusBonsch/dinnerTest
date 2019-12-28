@@ -438,7 +438,13 @@ class state(env.environment):
         Returns a vector with the rewards for all actions.
         """
         return self.rewards
-            
+    
+    def getLastReward(self):
+        """
+        Last reward is not know. Returns NaN
+        """
+        return np.NAN
+    
     def getMeetScore(self):
         """
         Calculates, how many persons each team has met and total number of persons met

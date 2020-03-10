@@ -15,7 +15,7 @@ class validation:
             configFile = os.path.join(os.path.abspath(os.path.dirname(__file__)), "config/config.yaml")
         ## read the config
         with open(configFile, "r") as f:
-            self.cfg = yaml.load(f)
+            self.cfg = yaml.safe_load(f)
         ## connect to the googlemaps API
         self.mapboxToken= self.cfg['mapBoxToken']
         
@@ -29,7 +29,7 @@ class validation:
         else:
             tmp = {'addressLat' : finalPartyLocation[0].iloc[0], 'addressLng' : finalPartyLocation[1].iloc[0]}
         tmp['assignedCourse'] = -1
-        dinnerTable = dinnerTable.append(tmp, ignore_index = True)
+        dinnerTable = dinnerTable.append(tmp, ignore_index = True, sort=True)
         ## convert nan course to -2
         dinnerTable.loc[np.isnan(dinnerTable['assignedCourse']), 'assignedCourse'] = -2
         ## create input data

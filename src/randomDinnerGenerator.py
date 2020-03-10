@@ -23,7 +23,7 @@ class randomDinnerGenerator:
                  ,catsIntolerantProbability
                  ,dogFreeProbability
                  ,catFreeProbability
-                 ,verbose
+                 ,verbose = False
                  ,checkValidity = True): ## set to False to get independent from googlemaps):
         self.numberOfTeams = numberOfTeams
         self.centerAddress = centerAddress

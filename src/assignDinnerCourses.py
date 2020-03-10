@@ -94,7 +94,11 @@ class assignDinnerCourses:
             offeredTablesDict = self.updateOfferedTables(listOfAssignedCourses,offeredTablesDict)
 
             # 4.) Update assignedCourses dataframe and add the just assigned courses
-            assignedCoursesForTeams = assignedCoursesForTeams.append(self.updateAssignedCoursesTable(listOfAssignedCourses,assignedCoursesForTeams,intoleranceTeamList,intoleranceClass))
+            assignedCoursesForTeams = assignedCoursesForTeams.append(self.updateAssignedCoursesTable(listOfAssignedCourses,
+                                                                                                     assignedCoursesForTeams,
+                                                                                                     intoleranceTeamList,
+                                                                                                     intoleranceClass),
+                                                                    sort=True)
 
             # 5.) Update global list of table->course assignment
             self.updateGlobalTableList( listOfAssignedCourses )

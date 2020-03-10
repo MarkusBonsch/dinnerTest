@@ -9,14 +9,13 @@ Everything around the state: reward update, etc.
 """
 
 import geoProcessing as gp
-import environment as env
 import numpy as np
 import pandas as pd
 import copy
 import os
 import pdb
 
-class state(env.environment):
+class state:
     """
     Contains the environment state.
     Most important variables:
@@ -46,6 +45,21 @@ class state(env.environment):
                            padded with dummy teams that will never be active. This int determines the total 
                            size of the state array. Must be larger than the number of teams in data
         """
+        
+        ## determine weights for different achievements
+        ## define constants
+        self.alphaInvalid = 5
+        self.alphaMeet    = 1
+        self.alphaDist    = 0.5
+        self.alphaCat     = 1
+        self.alphaDog     = 1
+        self.alphaAnimalProduct = 2
+        self.alphaMeat    = 2
+        self.alphaLactose = 2
+        self.alphaFish    = 2
+        self.alphaSeafood = 1
+        self.alphaMissingTeam = 2
+        
         if len(data) > padSize:
             raise ValueError('padSize must be at least the number of teams in the input data.')
         ## save the raw data
@@ -79,7 +93,7 @@ class state(env.environment):
                                         + 3 ## 1+padSize free seats for the three courses
                                         + self.padSize ## 1+padSize+3: guest at table 1:n for starter
                                         + self.padSize ## 1+2*padSize+3: guest at table 1:n for main course
-                                        + self.padSize ## 1+3*padSize+3: guest at table 1:n for main desert
+                                        + self.padSize ## 1+3*padSize+3: guest at table 1:n for desert
                                         + self.padSize ## 1+4*padSize+3 which teams have been met
                                         + 2 ## 1+5*padSize + 3 cat free and cat intolerant
                                         + 2 ## dog free and dog intolerant
@@ -323,40 +337,30 @@ class state(env.environment):
             where all alphas are positive weights.
         """
         
-        ## define constants
-        alphaInvalid = 100000
-        alphaMeet    = 50
-        alphaDist    = 1
-        alphaCat     = 1000
-        alphaDog     = 1000
-        alphaAnimalProduct = 100
-        alphaMeat    = 100
-        alphaLactose = 100
-        alphaFish    = 100
-        alphaSeafood = 50
+        
         ## calculate reward
-        self.rewards =  (  alphaMeet    * self.__getNewPersonsMet()
-                         - alphaInvalid * (1 - self.validActions)
-                         - alphaDist    * self.__getNewDistances()
-                         - (alphaCat     
+        self.rewards =  (  self.alphaMeet    * self.__getNewPersonsMet()
+                         - self.alphaInvalid * (1 - self.validActions)
+                         - self.alphaDist    * self.__getNewDistances()
+                         - (self.alphaCat     
                             * np.logical_and(self.state[self.activeTeam, 1+5*self.padSize+4].astype('bool'),
                                              np.logical_not(self.state[:, 1+5*self.padSize+3].astype('bool'))))
-                         - (alphaDog     
+                         - (self.alphaDog     
                             * np.logical_and(self.state[self.activeTeam, 1+5*self.padSize+6].astype('bool'),
                                              np.logical_not(self.state[:, 1+5*self.padSize+5].astype('bool'))))
-                         - (alphaAnimalProduct
+                         - (self.alphaAnimalProduct
                             * np.logical_and(self.state[self.activeTeam, 1+5*self.padSize+8].astype('bool'),
                                              np.logical_not(self.state[:, 1+5*self.padSize+7].astype('bool'))))
-                         - (alphaMeat
+                         - (self.alphaMeat
                             * np.logical_and(self.state[self.activeTeam, 1+5*self.padSize+10].astype('bool'),
                                              np.logical_not(self.state[:, 1+5*self.padSize+9].astype('bool'))))
-                         - (alphaLactose
+                         - (self.alphaLactose
                             * np.logical_and(self.state[self.activeTeam, 1+5*self.padSize+12].astype('bool'),
                                              np.logical_not(self.state[:, 1+5*self.padSize+11].astype('bool'))))
-                         - (alphaFish
+                         - (self.alphaFish
                             * np.logical_and(self.state[self.activeTeam, 1+5*self.padSize+14].astype('bool'),
                                              np.logical_not(self.state[:, 1+5*self.padSize+13].astype('bool'))))
-                         - (alphaSeafood
+                         - (self.alphaSeafood
                             * np.logical_and(self.state[self.activeTeam, 1+5*self.padSize+16].astype('bool'),
                                              np.logical_not(self.state[:, 1+5*self.padSize+15].astype('bool'))))
                          )
@@ -387,6 +391,7 @@ class state(env.environment):
         if action >= len(self.validActions):
             raise   ValueError("invalid action: " + str(action))
         if not self.validActions[action]:
+            pdb.set_trace()
             raise   ValueError("invalid action: " + str(action))
         
         ## update the relevant entries of the self.state variable
@@ -441,7 +446,7 @@ class state(env.environment):
     
     def getLastReward(self):
         """
-        Last reward is not know. Returns NaN
+        Last reward is not known. Returns NaN
         """
         return np.NAN
     
@@ -511,7 +516,7 @@ class state(env.environment):
         item1 = pd.DataFrame(item1)
         missedIntolerances = np.zeros((self.nTeams,))
         for t in xrange(0,self.nTeams):
-            hosts = item1.iloc[t].as_matrix()
+            hosts = item1.iloc[t].to_numpy()
             hosts = hosts[~np.isnan(hosts)]
             intoleranceIdx = np.where(self.state[t, [1+5*self.padSize+4,
                                                      1+5*self.padSize+6,
@@ -530,7 +535,7 @@ class state(env.environment):
             missedIntolerances[t] = (3-freeNess).sum()
         return (missedIntolerances, missedIntolerances.sum())
         
-    def getScore(self, meetScale = 1, distScale = 0.5, missedScale = 100, intoleranceScale = 50):
+    def getScore(self):
         """
         returns the final score of a game.
         Args:
@@ -541,10 +546,10 @@ class state(env.environment):
         Returns:
             int: the total game score
         """
-        
-        score = (meetScale * self.getMeetScore()[1] 
-                 - distScale * self.getDistanceScore()[1]
-                 - missedScale * self.getMissingTeamScore()[1]
+        intoleranceScale = self.alphaCat + self.alphaDog + self.alphaFish + self.alphaLactose + self.alphaMeat + self.alphaSeafood
+        score = (self.alphaMeet * self.getMeetScore()[1] 
+                 - self.alphaDist * self.getDistanceScore()[1]
+                 - self.alphaMissingTeam * self.getMissingTeamScore()[1]
                  - intoleranceScale * self.getMissedIntoleranceScore()[1])
         return score
         
@@ -566,7 +571,7 @@ class state(env.environment):
                     'nForcedFree' (how many intolerances were forced upon the team as host)
                 item4 (pandas DataFrame): summary with total scores for nPeopleMet,
                                           distanceCovered, nMissedTolerances, nForcedFree
-                item5 (numpy ndArray) raw data (self.state
+                item5 (numpy ndArray) raw data (self.state)
             If desired and possible, writes the file
         """
         if not self.isDone():
@@ -610,6 +615,7 @@ class state(env.environment):
         item4['nMissedIntolerances'] = item3['nMissedIntolerances'].sum()
         item4['nForcedFree'] = item3['nForcedFree'].sum()
         item4['nMissingTeams'] = item3['teamMissing'].astype('int').sum()
+        item4['score'] = self.getScore()
         item4 = pd.DataFrame(item4, index = [0])
         item5 = copy.deepcopy(self.state)
         result = (item1,item2,item3,item4,item5)

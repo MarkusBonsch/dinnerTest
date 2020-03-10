@@ -24,7 +24,7 @@ class dinnerEvent:
         assign()
     """
     
-    def __init__(self, dinnerTable, finalPartyLocation, dinnerTime, travelMode = 'simple', shuffleTeams = False, padSize = 50):
+    def __init__(self, dinnerTable, finalPartyLocation, dinnerTime, travelMode = 'simple', shuffleTeams = False, padSize = 50, tableAssigner = randomAgent, assignerArgs = None):
         """
         Args:
             dinnerTable (pandas dataframe): info about all the teams in defined format
@@ -39,7 +39,7 @@ class dinnerEvent:
         self.courseAssigner = assignDinnerCourses(dinnerTable, 
                                                       finalPartyLocation)
         self.state = state(dinnerTable, dinnerTime, travelMode, shuffleTeams, padSize)
-        self.tableAssigner = randomAgent(self.state)
+        self.tableAssigner = tableAssigner(**assignerArgs)
         self.validation = validation()
         
     def assignTables(self, random = False):
@@ -56,6 +56,8 @@ class dinnerEvent:
         self.state.reset()
         while not self.state.isDone(): 
             action = self.tableAssigner.chooseAction(self.state, random=random)
+#            if not action in self.state.getValidActions():
+#                pdb.set_trace()
             self.state.update(action)
         return copy.deepcopy(self.state.state)
         
@@ -90,7 +92,7 @@ class dinnerEvent:
         ## for each assignedCourses, get a list with assignedTables.
         assignedTables = []
         ## get a numpy array for the scores. 3 Columns for intoleranceScore, meetScore and distanceScore
-        scores = np.zeros((len(assignedCourses) * max(1,repTableAssign), 4))
+        scores = np.zeros((len(assignedCourses) * max(1,repTableAssign), 5))
         for i in xrange(0, len(assignedCourses)):
             self.state.updateAssignedCourses(assignedCourses[i])
             if repTableAssign == 0:
@@ -100,6 +102,8 @@ class dinnerEvent:
                 scores[i,1] = assignedTables[i][3]['nMissedIntolerances'].item()
                 scores[i,2] = self.state.getMeetScore()[1]
                 scores[i,3] = self.state.getDistanceScore()[1]
+                scores[i,4] = self.state.getScore()
+                
             else:
                 for j in xrange(0, repTableAssign):
                     self.assignTables(random = True) ## update self.state

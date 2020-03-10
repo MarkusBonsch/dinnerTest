@@ -19,7 +19,7 @@ class randomAgent:
     Most importnat method: chooseAction(state)
     """
     
-    def __init__(self, state):
+    def __init__(self, **kwargs):
         pass
     
     def chooseAction(self, state, random = True):

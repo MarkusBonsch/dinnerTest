@@ -27,7 +27,7 @@ class geoProcessing:
             configFile = os.path.join(os.path.abspath(os.path.dirname(__file__)), "config/config.yaml")
         ## read the config
         with open(configFile, "r") as f:
-            self.cfg = yaml.load(f)
+            self.cfg = yaml.safe_load(f)
         ## connect to the googlemaps API
         self.gmapClient = gm.Client(key = self.cfg['gmapsKey'])
        

@@ -339,7 +339,7 @@ class state:
         
         
         ## calculate reward
-        self.rewards =  (  self.alphaMeet    * self.__getNewPersonsMet()
+        self.rewards =  (  self.alphaMeet    * self.getNewPersonsMet()
                          - self.alphaInvalid * (1 - self.validActions)
                          - self.alphaDist    * self.__getNewDistances()
                          - (self.alphaCat     
@@ -393,7 +393,7 @@ class state:
         if not self.validActions[action]:
             pdb.set_trace()
             raise   ValueError("invalid action: " + str(action))
-        
+            
         ## update the relevant entries of the self.state variable
         # where the active team is guest for the active course
         self.state[self.activeTeam, 1+self.activeCourse*self.padSize+3+action] = 1
@@ -427,9 +427,9 @@ class state:
         self.__updateActiveCourse()
         self.__updateActiveTeam()
         self.__updateIsDone()  
+        self.__updateCurrentLocations()
+        self.__updateValidActions()
         if not self.isDone():
-            self.__updateCurrentLocations()
-            self.__updateValidActions()
             if np.all(self.validActions == 0):
                 raise ValueError('Internal error: no valid actions remain but state.isDone = False')
             self.__updateRewards()
@@ -642,7 +642,7 @@ class state:
         excel_writer.save()
 
 
-    def __getNewPersonsMet(self):
+    def getNewPersonsMet(self):
         """
         Determines, how many new persons would be met when seating the activePerson
         at all possible tables.

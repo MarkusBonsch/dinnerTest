@@ -225,7 +225,11 @@ class state:
         """
         locations = np.empty((self.padSize,))
         locations[:] = np.arange(self.padSize) ## starting locations
-        for c in xrange(1,self.activeCourse+1):
+        if not self.isDone():
+            currentCourse = self.activeCourse
+        else:
+            currentCourse = 1 ## everything is done, so the desert is the last assigned course
+        for c in xrange(1,currentCourse+1):
             matches = np.where(self.state[:,(1+c*self.padSize+3):(1+(c+1)*self.padSize+3)]==1)
             if len(matches[0]) > self.nTeams:
                 raise ValueError("Internal error. One team sits at multiple tables")
@@ -427,12 +431,12 @@ class state:
         self.__updateActiveCourse()
         self.__updateActiveTeam()
         self.__updateIsDone()  
-        self.__updateCurrentLocations()
         self.__updateValidActions()
+        self.__updateCurrentLocations()
         if not self.isDone():
+            self.__updateRewards()
             if np.all(self.validActions == 0):
                 raise ValueError('Internal error: no valid actions remain but state.isDone = False')
-            self.__updateRewards()
         if self.isDone() and not self.rescueMode:
 #            pdb.set_trace()
             ## normal seating is over, start rescue phase

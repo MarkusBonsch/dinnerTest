@@ -24,22 +24,24 @@ class dinnerEvent:
         assign()
     """
     
-    def __init__(self, dinnerTable, finalPartyLocation, dinnerTime, travelMode = 'simple', shuffleTeams = False, padSize = 50, tableAssigner = randomAgent, assignerArgs = None):
+    def __init__(self, dinnerTable, finalPartyLocation, dinnerTime, travelMode = 'simple', shuffleTeams = False, padSize = 50, tableAssigner = randomAgent, **kwargs):
         """
         Args:
             dinnerTable (pandas dataframe): info about all the teams in defined format
-            finalPartyLocation (string): currently ignored
+            finalPartyLocation (array): geocoordinates of the final party location
             dinnerTime (datetime): time of the dinner
             travelMode (string): see state.__init__ documentation for details.
                                  'simple' is safe and easy
             shuffleTeams (bool): If True, the choice, which team is seated next is random. 
                                  Otherwise, always the subsequent team will be seated.
             padSize (int): see state.py __init__. Must be at least as high as the number of participating teams.
+            tableAssigner (class with a chooseAction method): the logic to assign tables
+            **kwargs: additional arguments passed to the tableAssigner
         """
         self.courseAssigner = assignDinnerCourses(dinnerTable, 
                                                       finalPartyLocation)
         self.state = state(dinnerTable, dinnerTime, travelMode, shuffleTeams, padSize)
-        self.tableAssigner = tableAssigner(**assignerArgs)
+        self.tableAssigner = tableAssigner(**kwargs)
         self.validation = validation()
         
     def assignTables(self, random = False):
@@ -52,10 +54,10 @@ class dinnerEvent:
         Returns:
             No return. The internal variable self.state is updated
         """
-        
         self.state.reset()
         while not self.state.isDone(): 
             action = self.tableAssigner.chooseAction(self.state, random=random)
+            print "action: {0}".format(action)
 #            if not action in self.state.getValidActions():
 #                pdb.set_trace()
             self.state.update(action)

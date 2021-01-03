@@ -55,6 +55,7 @@ class dinnerEvent:
             No return. The internal variable self.state is updated
         """
         self.state.reset()
+        self.tableAssigner.reset()
         while not self.state.isDone(): 
             action = self.tableAssigner.chooseAction(self.state, random=random)
             print "action: {0}".format(action)

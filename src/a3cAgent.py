@@ -40,7 +40,15 @@ class a3cAgent:
         self.net.copyParams(fromNet=params)
         self.net.hybridize()
         self.env = envMaker()
+        self.reset()
 
+    def reset(self):
+        """
+        resets to new game. Resetting all counters
+        """
+        self.stepCounter = 0
+        self.invalidCounter = 0
+        
     def chooseAction(self, state, random = False):
         """
         Args:
@@ -58,12 +66,15 @@ class a3cAgent:
         self.env.reset(initState = state)
         _, actionScore = self.net(self.env.getNetState())  
         
-        ## reduce to valid actions
-        validActions = self.env.env.getValidActions()
-        validScore = mx.nd.zeros_like(actionScore)
-        validScore[0,validActions] = actionScore[0,validActions]
-        ## choose best action
-        action = int(mx.nd.argmax(validScore, axis = 1).asscalar())
+        action = int(mx.nd.argmax(actionScore, axis = 1).asscalar())
+        validActions = state.getValidActions()
+#        pdb.set_trace()
+        if(not action in validActions):
+            self.invalidCounter += 1
+            validScore = mx.nd.zeros_like(actionScore)
+            validScore[0,validActions] = actionScore[0,validActions]    
+            action = int(mx.nd.argmax(validScore, axis = 1).asscalar())
+        self.stepCounter += 1
         return action
         
         

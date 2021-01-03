@@ -22,6 +22,9 @@ class randomAgent:
     def __init__(self, **kwargs):
         pass
     
+    def reset(self):
+        pass
+    
     def chooseAction(self, state, random = True):
         """
         :Args:

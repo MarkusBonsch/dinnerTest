@@ -51,10 +51,13 @@ myEvent = dinnerEvent(dinnerTable = dinner,
                       symbolFile = '/home/markus/Documents/Nerding/python/a3c/test/dinner_simple/test_fullState_valid_meetScore_9Teams_9pad_normRange20_conv16_fc64/35000/net-symbol.json')
 
 
-test = myEvent.assign(repCourseAssign = 8, 
+test = myEvent.assign(repCourseAssign = 0, 
                       repTableAssign = 0, 
                       outFolder='a3c/test/dinner_simple/test_fullState_valid_meetScore_9Teams_9pad_normRange20_conv16_fc64/35000/', 
                       overwrite = True)
+
+print("Steps: {0}".format(myEvent.tableAssigner.stepCounter))
+print("InvalidSteps: {0}".format(myEvent.tableAssigner.invalidCounter))
 
 agent = a3cAgent(envMaker = dinner_simple_run.dinnerMaker, 
                  netMaker = dinner_simple_run.netMaker, 

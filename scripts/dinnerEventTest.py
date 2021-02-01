@@ -17,6 +17,7 @@ excel_file = pd.ExcelFile('dinnerTest20NoIntolerance.xlsx')
 #finalDinnerLocation=xl.sheet_names[0]
 dinner = pd.read_excel(excel_file,'teams')
 finalPartyLocation = pd.read_excel(excel_file,'final_party_location',header=None)
+finalPartyLocation.columns = ["lat", "lng"]
 dinnerTime = datetime(2018, 07, 01, 20, 0, 0)
 
 myEvent = dinnerEvent(dinnerTable = dinner, 

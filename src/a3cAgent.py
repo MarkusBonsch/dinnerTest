@@ -6,11 +6,6 @@ Created on Sat Dec 29 08:29:53 2018
 """
 
 import sys
-sys.path.insert(0,'/home/markus/Documents/Nerding/python/dinnerTest/src')
-sys.path.insert(0,'/home/markus/Documents/Nerding/python/a3c/test/dinner')
-sys.path.insert(0,'/home/markus/Documents/Nerding/python/a3c/src')
-sys.path.insert(0,'/home/markus/Documents/Nerding/python/plotting')
-
 import mxnet as mx
 import numpy as np
 import pdb
@@ -25,7 +20,7 @@ class a3cAgent:
     def __init__(self, envMaker, netMaker, paramFile, symbolFile, random = False, **kwargs):
         """
         Args:
-            envMAker (function): function that returns the environment to be used.
+            envMaker (function): function that returns the environment to be used.
             netMaker (function): a function that returns the neural net to be used.
             paramFile (string): the path to the file that contains the trained parameters
             symbolFile (string): the path to the file that contains the symbol shapes
@@ -68,7 +63,6 @@ class a3cAgent:
         
         action = int(mx.nd.argmax(actionScore, axis = 1).asscalar())
         validActions = state.getValidActions()
-#        pdb.set_trace()
         if(not action in validActions):
             self.invalidCounter += 1
             validScore = mx.nd.zeros_like(actionScore)

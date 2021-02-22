@@ -7,8 +7,9 @@ Created on Sun Dec 20 23:48:17 2020
 """
 
 import sys
-sys.path.insert(0,'/home/markus/Documents/Nerding/python/dinnerTest/src')
-sys.path.insert(0,'/home/markus/Documents/Nerding/python/a3c/test/dinner_simple/test_fullState_valid_meetScore_9Teams_9pad_normRange20_conv16_fc64/35000')
+sys.path.insert(0,'C:/users/markus_2/Documents/Nerding/python/dinnerTest/src')
+sys.path.insert(0,'C:/users/markus_2/Documents/Nerding/python/a3c/src')
+sys.path.insert(0,'C:/users/markus_2/Documents/Nerding/python/a3c/test/dinner_simple/test_fullState_valid_meetScore_9Teams_9pad_normRange20_conv16_fc64/35000')
 
 from a3cAgent import a3cAgent
 import dinner_simple_run
@@ -20,9 +21,9 @@ from dinnerEvent import dinnerEvent
 Dinner1 = rdg.randomDinnerGenerator(numberOfTeams=9
                                     ,centerAddress={'lat':53.551086, 'lng':9.993682}
                                     ,radiusInMeter=5000
-                                    ,wishStarterProbability=0.3
-                                    ,wishMainCourseProbability=0.4
-                                    ,wishDessertProbability=0.3
+                                    ,wishStarterProbability=1/3
+                                    ,wishMainCourseProbability=1/3
+                                    ,wishDessertProbability=1/3
                                     ,rescueTableProbability=1
                                     ,meatIntolerantProbability=0
                                     ,animalProductsIntolerantProbability=0
@@ -31,8 +32,8 @@ Dinner1 = rdg.randomDinnerGenerator(numberOfTeams=9
                                     ,seafoodIntolerantProbability=0
                                     ,dogsIntolerantProbability=0
                                     ,catsIntolerantProbability=0
-                                    ,dogFreeProbability=0
-                                    ,catFreeProbability=0
+                                    ,dogFreeProbability=1
+                                    ,catFreeProbability=1
                                     ,verbose=0
                                     ,checkValidity = False)
 dinner,finalPartyLocation=Dinner1.generateDinner()
@@ -47,20 +48,48 @@ myEvent = dinnerEvent(dinnerTable = dinner,
                       tableAssigner = a3cAgent, 
                       envMaker = dinner_simple_run.dinnerMaker, 
                       netMaker = dinner_simple_run.netMaker, 
-                      paramFile= '/home/markus/Documents/Nerding/python/a3c/test/dinner_simple/test_fullState_valid_meetScore_9Teams_9pad_normRange20_conv16_fc64/35000/net-0001.params',
-                      symbolFile = '/home/markus/Documents/Nerding/python/a3c/test/dinner_simple/test_fullState_valid_meetScore_9Teams_9pad_normRange20_conv16_fc64/35000/net-symbol.json')
+                      paramFile= 'C:/users/markus_2/Documents/Nerding/python/a3c/test/dinner_simple/test_fullState_valid_meetScore_9Teams_9pad_normRange20_conv16_fc64/35000/net-0001.params',
+                      symbolFile = 'C:/users/markus_2/Documents/Nerding/python/a3c/test/dinner_simple/test_fullState_valid_meetScore_9Teams_9pad_normRange20_conv16_fc64/35000/net-symbol.json')
 
 
 test = myEvent.assign(repCourseAssign = 0, 
                       repTableAssign = 0, 
-                      outFolder='a3c/test/dinner_simple/test_fullState_valid_meetScore_9Teams_9pad_normRange20_conv16_fc64/35000/', 
+                      outFolder= None, #'a3c/test/dinner_simple/test_fullState_valid_meetScore_9Teams_9pad_normRange20_conv16_fc64/35000/', 
                       overwrite = True)
 
 print("Steps: {0}".format(myEvent.tableAssigner.stepCounter))
 print("InvalidSteps: {0}".format(myEvent.tableAssigner.invalidCounter))
+print("InvalidList:")
+print(myEvent.tableAssigner.invalidList)
+
+
+
 
 agent = a3cAgent(envMaker = dinner_simple_run.dinnerMaker, 
                  netMaker = dinner_simple_run.netMaker, 
-                 paramFile= '/home/markus/Documents/Nerding/python/a3c/test/dinner_simple/test_fullState_valid_meetScore_9Teams_9pad_normRange20_conv16_fc64/35000/net-0001.params',
-                 symbolFile = '/home/markus/Documents/Nerding/python/a3c/test/dinner_simple/test_fullState_valid_meetScore_9Teams_9pad_normRange20_conv16_fc64/35000/net-symbol.json')
-agent.chooseAction(state = agent.env.env)
+                 paramFile= 'C:/users/markus_2/Documents/Nerding/python/a3c/test/dinner_simple/test_fullState_valid_meetScore_9Teams_9pad_normRange20_conv16_fc64/35000/net-0001.params',
+                 symbolFile = 'C:/users/markus_2/Documents/Nerding/python/a3c/test/dinner_simple/test_fullState_valid_meetScore_9Teams_9pad_normRange20_conv16_fc64/35000/net-symbol.json')
+
+agent.reset()
+print(agent.env.getNetState().sum())
+i = 1
+while not agent.env.isDone():
+    agent._act()
+    i+=1
+print agent.invalidList
+
+agent.reset()
+print(agent.env.getNetState().sum())
+i = 1
+while not agent.env.isDone():
+    a = agent.chooseAction(state = agent.env.env)
+    agent.env.update(a)
+    i+=1
+print agent.invalidList
+
+# action = agent.chooseAction(state = agent.env.env)
+# print action
+# agent.env.update(100)
+# agent.env.env.getValidActions()
+# agent.invalidCounter
+

@@ -43,32 +43,44 @@ class a3cAgent:
         """
         self.stepCounter = 0
         self.invalidCounter = 0
+        self.invalidList = []
+        self.env.reset()
         
-    def chooseAction(self, state, random = False):
+    def chooseAction(self, state = None, random = False):
         """
         Args:
-            -state (state object): the current state of the dinnerEvent,
+            -state (state object): the current state of the dinnerEvent. If none, the state of the internal dinnerObject will be used,
             -random (bool): ignored
         Returns:
             int:
                 the chosen action, i.e. the teamId where the state.activeTeam is seated
                 for the state.activeCourse. np.nan if state.isDone
         """
-        if state.isDone():
-            return np.nan
-        
+        if state is not None:
+            if state.isDone():
+                return np.nan
+            self.env.reset(initState = state)
+        else:
+            state = self.env.env
         ## run state through net
-        self.env.reset(initState = state)
         _, actionScore = self.net(self.env.getNetState())  
         
         action = int(mx.nd.argmax(actionScore, axis = 1).asscalar())
         validActions = state.getValidActions()
         if(not action in validActions):
             self.invalidCounter += 1
+            self.invalidList.append(self.stepCounter)
             validScore = mx.nd.zeros_like(actionScore)
             validScore[0,validActions] = actionScore[0,validActions]    
             action = int(mx.nd.argmax(validScore, axis = 1).asscalar())
         self.stepCounter += 1
         return action
+
+    def _act(self):
+        """for internal use only. Will choose an action based on the internal dinnerObject and update the internal dinnerObject
+        """
+        a = self.chooseAction()
+        if a is not None:
+            self.env.update(a)
         
         

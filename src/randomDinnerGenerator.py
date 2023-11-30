@@ -54,12 +54,12 @@ class randomDinnerGenerator:
 
     def generateDinner(self):
         dinner=list()
-        for t in xrange(0, self.numberOfTeams):
+        for t in range(0, self.numberOfTeams):
             if self.verbose: print("Generate team "+str(t)+":")
             team = self.generateTeam()
             team['team'] = t
             dinner.append(team)
-            if self.verbose: print ""
+            if self.verbose: print("")
         datapd = pd.DataFrame(dinner) 
         datapd = datapd[['team',
                          'addressLat',
@@ -75,7 +75,7 @@ class randomDinnerGenerator:
                          'meatIntolerant',
                          'fishIntolerant',
                          'seafoodIntolerant']]
-        if self.verbose: print datapd
+        if self.verbose: print(datapd)
         finalPartyLocation = pd.DataFrame([self.centerAddress])
         full_result = [datapd,finalPartyLocation]
         return(full_result)

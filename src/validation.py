@@ -42,14 +42,14 @@ class validation:
             locs = np.empty((5,)) ## locations for each course, includign home location and final party
             lat = np.empty((4,2)) ## 4 distances per team with start and end
             lng = np.empty((4,2)) ## 4 distances per team with start and end
-            for t in xrange(0,len(dinnerTable) - 1): ## -1 for final party location
+            for t in range(0,len(dinnerTable) - 1): ## -1 for final party location
                 ## get all locations and the geoCoordinates
                 locs[0] = t ## home location
                 locs[1:4] = dinnerTable.loc[t, ['starterLocation', 'mainCourseLocation', 'dessertLocation']].values
                 locs[4] = len(dinnerTable) - 1 ## final party location
                 if np.any(np.isnan(locs)): ## team is not fully seated
                     continue
-                for l in xrange(0,4):
+                for l in range(0,4):
                     lat[l,0] = dinnerTable.loc[locs[l], 'addressLat']
                     lat[l,1] = dinnerTable.loc[locs[l+1], 'addressLat']
                     lng[l,0] = dinnerTable.loc[locs[l], 'addressLng']

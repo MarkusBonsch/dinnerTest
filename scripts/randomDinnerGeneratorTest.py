@@ -1,6 +1,7 @@
 import pandas as pd
 import sys
-sys.path.insert(0,'/home/markus/Documents/Nerding/python/dinnerTest')
+sys.path.insert(0,'C:/users/markus_2/Documents/Nerding/python/dinnerTest')
+sys.path.insert(0,'C:/users/markus_2/Documents/Nerding/python/dinnerTest/src')
 import src.randomDinnerGenerator as rdg
 
 Dinner1 = rdg.randomDinnerGenerator(numberOfTeams=50
@@ -22,8 +23,8 @@ Dinner1 = rdg.randomDinnerGenerator(numberOfTeams=50
                                     ,verbose=1
                                     ,checkValidity = False)
 dinner,finalPartyLocation=Dinner1.generateDinner()
-print finalPartyLocation
-excel_writer = pd.ExcelWriter('dinnerTest50NoIntolerance.xlsx')
+print(finalPartyLocation)
+excel_writer = pd.ExcelWriter('test.xls')
 dinner.to_excel(excel_writer,'teams')
 finalPartyLocation.to_excel(excel_writer,'final_party_location',index=None, header=False)
 excel_writer.save()

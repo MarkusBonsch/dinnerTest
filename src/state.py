@@ -121,20 +121,20 @@ class state:
         self.state[:, 1:(1+self.padSize)] = 10
         self.state[0:self.nTeams, 1:(1+self.nTeams)] = self.travelTime[:,:,0]
         ## set free seats (2 for each team for the assigned course, 0 for resuced teams)
-        for c in xrange(1,4):
+        for c in range(1,4):
             hostTeams = np.zeros(self.padSize, dtype = bool)
             hostTeams[np.where(data['assignedCourse'] == c)[0]] = 1
             self.state[hostTeams, 1+self.padSize+c-1] = 2
         ## set guest at table x for starter, mainCourse, desert
         ## all left at 0, except for assignedCourse, 
         ## where the team sits at their own table (except rescue teams)
-        for team in xrange(0, self.nTeams):
+        for team in range(0, self.nTeams):
             if self.state[team,0] != 1:
                 continue ## rescue teams and padded teams don't sit at their own table
             assignedCourse = int(data['assignedCourse'][team])
             self.state[team, 1+assignedCourse*self.padSize+3+team]   = 1
         ## set hasMet to all 0s except for team has met itself
-        for team in xrange(0, self.nTeams):
+        for team in range(0, self.nTeams):
             self.state[team, 1+4*self.padSize+3+team] = 1
         ## set intolerances etc.
         self.state[0:self.nTeams, 1+5*self.padSize+3]  = data['catFree']
@@ -174,7 +174,7 @@ class state:
         ## set rescue tables to active, leave padded Tables at -1
         self.state[np.where(self.state[:,0] == 0)[0],0] = 1
         ## set free seats for rescue teams to 1 for the assigned course
-        for c in xrange(1,4):
+        for c in range(1,4):
             hostTeams = np.zeros(self.padSize, dtype = bool)
             hostTeams[np.where(np.logical_and(data['assignedCourse'] == c,
                                               data['rescueTable'] == 1))] = 1
@@ -229,7 +229,7 @@ class state:
             currentCourse = self.activeCourse
         else:
             currentCourse = 1 ## everything is done, so the desert is the last assigned course
-        for c in xrange(1,currentCourse+1):
+        for c in range(1,currentCourse+1):
             matches = np.where(self.state[:,(1+c*self.padSize+3):(1+(c+1)*self.padSize+3)]==1)
             if len(matches[0]) > self.nTeams:
                 raise ValueError("Internal error. One team sits at multiple tables")
@@ -247,7 +247,7 @@ class state:
         """
         ## checks, for which course there are free seats left and people that need seating
         self.activeCourse = np.nan
-        for c in reversed(xrange(1,4)):
+        for c in reversed(range(1,4)):
             ## going backwards through the courses to determine the first one with need
             freeSeatCourse = self.state[:, 1+self.padSize-1+c].sum() > 0
             hasNeedCourse = np.any(np.logical_and(
@@ -479,16 +479,16 @@ class state:
         tmp = np.empty((self.nTeams, 4))
         tmp[:,:] = -999
         tmp[:,0] = np.arange(self.nTeams) ## starting location is at home
-        for c in xrange(1,4):
+        for c in range(1,4):
             thisLoc = np.where(self.state[:,(1+c*self.padSize+3):(1+(c+1)*self.padSize+3)] == 1)
             tmp[thisLoc[0],c] = thisLoc[1]
         tmp = tmp.astype('int') ## for using as index
         ## get distance from place at course  to place at course c+1 for team t
-        for t in xrange(0,self.nTeams):
+        for t in range(0,self.nTeams):
             if np.any(tmp[t,:] == -999):
                 continue ## this team hasn't been seated properly. LUse default distance
             teamDist[t] = 0
-            for c in xrange(0,3):
+            for c in range(0,3):
                 teamDist[t] += self.state[tmp[t,c], 1+tmp[t,c+1]]
         return (teamDist, teamDist.sum())
             
@@ -514,12 +514,12 @@ class state:
         """
         item1  = np.empty((self.nTeams, 3))
         item1[:,:] = np.nan
-        for c in xrange(1,4):
+        for c in range(1,4):
             matches = np.where(self.state[:,(1+c*self.padSize+3):(1+(c+1)*self.padSize+3)]==1)
             item1[matches[0],c-1] = matches[1]
         item1 = pd.DataFrame(item1)
         missedIntolerances = np.zeros((self.nTeams,))
-        for t in xrange(0,self.nTeams):
+        for t in range(0,self.nTeams):
             hosts = item1.iloc[t].to_numpy()
             hosts = hosts[~np.isnan(hosts)]
             intoleranceIdx = np.where(self.state[t, [1+5*self.padSize+4,
@@ -584,14 +584,14 @@ class state:
             raise ValueError('Export only possible if rescue Teams have been assigned')
         item1  = np.empty((self.nTeams, 3))
         item1[:,:] = np.nan
-        for c in xrange(1,4):
+        for c in range(1,4):
             matches = np.where(self.state[:,(1+c*self.padSize+3):(1+(c+1)*self.padSize+3)]==1)
             item1[matches[0],c-1] = matches[1]
         item1 = pd.DataFrame(item1)
         
         item2=[]
         maxGuests = 0
-        for i in xrange(0, self.nTeams):
+        for i in range(0, self.nTeams):
             thisGuests = np.where(item1 == i)[0]
             maxGuests = max(maxGuests, len(thisGuests))
             item2.append(thisGuests)
@@ -606,7 +606,7 @@ class state:
         item3['teamMissing'] = self.getMissingTeamScore()[0]
             
         nForcedFree = np.zeros((self.nTeams,))
-        for i in xrange(0,5):
+        for i in range(0,5):
             ## loop over 5 intolerances. Excluding cat and dog 
             ## because you can't force cat and dog free 
             nForcedFree += np.logical_and(self.state[0:self.nTeams, 1+5*self.padSize+7+2*i].astype('bool'),
@@ -703,22 +703,22 @@ class state:
         """
         myGp = gp.geoProcessing()
         distMatrix = np.zeros(shape = (self.nTeams, self.nTeams, len(travelModes)), dtype = float)
-        for s in xrange(0, self.nTeams):
-            for e in xrange(s, self.nTeams):
+        for s in range(0, self.nTeams):
+            for e in range(s, self.nTeams):
                 origin = dict(lat = data.loc[s, 'addressLat'].item(),
                               lng = data.loc[s, 'addressLng'].item())
                 destination = dict(lat = data.loc[e, 'addressLat'].item(),
                                    lng = data.loc[e, 'addressLng'].item())
                 ## get the distance from s to e for each travelMode
-                for t in xrange(0, len(travelModes)):
+                for t in range(0, len(travelModes)):
                     distMatrix[s, e, t] = myGp.getTravelTime(origin = origin,
                                               destination = destination,
                                               mode = travelModes[t],
                                               departureTime = dinnerTime) 
                 
         ## fill the reverse entries with the same values
-        for s in xrange(1, self.nTeams):
-            for e in xrange(0, s):
+        for s in range(1, self.nTeams):
+            for e in range(0, s):
                 distMatrix[s, e, :] = distMatrix[e, s, :]
         
         return distMatrix

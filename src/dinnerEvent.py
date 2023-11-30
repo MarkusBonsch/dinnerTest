@@ -58,7 +58,7 @@ class dinnerEvent:
         self.tableAssigner.reset()
         while not self.state.isDone(): 
             action = self.tableAssigner.chooseAction(self.state, random=random)
-            print "action: {0}".format(action)
+            print("action: {0}".format(action))
 #            if not action in self.state.getValidActions():
 #                pdb.set_trace()
             self.state.update(action)
@@ -89,14 +89,14 @@ class dinnerEvent:
         if repCourseAssign == 0:
             assignedCourses.append(self.courseAssigner.assignDinnerCourses(random=False))
         else:
-            for i in xrange(0, repCourseAssign):
+            for i in range(0, repCourseAssign):
                 assignedCourses.append(self.courseAssigner.assignDinnerCourses(random=True))
         
         ## for each assignedCourses, get a list with assignedTables.
         assignedTables = []
         ## get a numpy array for the scores. 3 Columns for intoleranceScore, meetScore and distanceScore
         scores = np.zeros((len(assignedCourses) * max(1,repTableAssign), 5))
-        for i in xrange(0, len(assignedCourses)):
+        for i in range(0, len(assignedCourses)):
             self.state.updateAssignedCourses(assignedCourses[i])
             if repTableAssign == 0:
                 self.assignTables(random = False) ## updates self.state
@@ -108,7 +108,7 @@ class dinnerEvent:
                 scores[i,4] = self.state.getScore()
                 
             else:
-                for j in xrange(0, repTableAssign):
+                for j in range(0, repTableAssign):
                     self.assignTables(random = True) ## update self.state
                     assignedTables.append(self.state.export())
                     scores[i*repTableAssign + j,0] = self.state.getMissingTeamScore()[1]
@@ -134,7 +134,7 @@ class dinnerEvent:
             if not os.path.exists(outFolder):
                 os.makedirs(outFolder)
             elif not overwrite:
-                raise  IOError('Folder already exists: ' + outFolder + '. Specify overwrite = True if needed')
+                raise  IOError('Folder already exists: ', outFolder, '. Specify overwrite = True if needed')
             ## final result excel
             self.state.saveExport(data = final, 
                                   fileName = os.path.join(outFolder, 'result.xlsx'), 

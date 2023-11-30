@@ -6,10 +6,11 @@ import src.assignDinnerCourses as adc
 import src.validation as valid
 import cProfile as cP
 from timeit import default_timer
-sys.path.insert(0,'/home/markus/Documents/Nerding/python/dinnerTest')
+sys.path.insert(0,'C:/users/markus_2/Documents/Nerding/python/dinnerTest')
+sys.path.insert(0,'C:/users/markus_2/Documents/Nerding/python/dinnerTest/src')
 import src.randomDinnerGenerator as rdg
 
-for i in range(100):
+for i in range(10):
     Dinner1 = rdg.randomDinnerGenerator(numberOfTeams=12
                                     ,centerAddress={'lat':53.551086, 'lng':9.993682}
                                     ,radiusInMeter=5000

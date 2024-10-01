@@ -22,6 +22,7 @@ class validation:
     # ==============================================================================================================================
     def plotMapOfAssignedTables(self, dinnerTable, finalPartyLocation):
         ## add final party location to dinnerTable with course -1
+        # pdb.set_trace()
         if type(finalPartyLocation) == str:
             tmp = self.myGp.address2LatLng(finalPartyLocation)
             tmp['addressLat'] = tmp.pop('lat')
@@ -100,6 +101,7 @@ class validation:
                                 width = 4,)
                     ))
         for course in dinnerTable.loc[:, 'assignedCourse'].unique():
+            # pdb.set_trace()
             thisDat = dinnerTable.loc[dinnerTable['assignedCourse'] == course]
             
             thisText = 'Team: ' + thisDat['team'].astype('str') + '<br>' + 'Course: ' + courseNames[course] + '<br>' + 'Course wish: ' + thisDat['courseWish'].apply(lambda x: 'unknwon' if np.isnan(x) else courseNames[x]) 
@@ -134,7 +136,8 @@ class validation:
     
     # ==============================================================================================================================    
     def plotTableDistributions(self, dinnerTable):
-        x = dinnerTable.groupby("assignedCourse").groups.keys()
+        # pdb.set_trace()
+        x = list(dinnerTable.groupby("assignedCourse").groups.keys())
         ## get number of tables per course
         totalTableDistribution = (dinnerTable.groupby("assignedCourse").size() / dinnerTable.shape[0]).tolist()
         ## get number of rescue tables per course

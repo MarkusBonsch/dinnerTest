@@ -24,7 +24,5 @@ myEvent = dinnerEvent(dinnerTable = dinner,
                       finalPartyLocation=finalPartyLocation, 
                       dinnerTime=dinnerTime, travelMode='simple', shuffleTeams = False, padSize = 50)
 
-test = myEvent.assign(repCourseAssign = 8, 
-                      repTableAssign = 10, outFolder='tmp', overwrite = True)
-
-
+test = myEvent.assign(repCourseAssign = 1, 
+                    repTableAssign = 1, outFolder='newTest', overwrite = True)

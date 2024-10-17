@@ -9,7 +9,7 @@ Created on Sun Dec 20 23:48:17 2020
 import sys
 sys.path.insert(0,'C:/users/markus_2/Documents/Nerding/python/dinnerTest/src')
 sys.path.insert(0,'C:/users/markus_2/Documents/Nerding/python/a3c/src')
-sys.path.insert(0,'C:/users/markus_2/Documents/Nerding/python/a3c/test/dinner_simple/test_fullState_valid_meetScore_9Teams_9pad_normRange20_conv16_fc64/35000')
+sys.path.insert(0,'C:/Users/markus_2/Documents/Nerding/python/a3c/test/dinner_simple/v2_24teams_pad24_discount01')
 
 from a3cAgent import a3cAgent
 import dinner_simple_run
@@ -18,7 +18,7 @@ from datetime import datetime
 from dinnerEvent import dinnerEvent
 
 ## generate the dinner event
-Dinner1 = rdg.randomDinnerGenerator(numberOfTeams=9
+Dinner1 = rdg.randomDinnerGenerator(numberOfTeams=24
                                     ,centerAddress={'lat':53.551086, 'lng':9.993682}
                                     ,radiusInMeter=5000
                                     ,wishStarterProbability=1/3
@@ -37,19 +37,19 @@ Dinner1 = rdg.randomDinnerGenerator(numberOfTeams=9
                                     ,verbose=0
                                     ,checkValidity = False)
 dinner,finalPartyLocation=Dinner1.generateDinner()
-dinnerTime = datetime(2018, 07, 01, 20, 0, 0)
+dinnerTime = datetime(2018, 7, 1, 20, 0, 0)
 
 myEvent = dinnerEvent(dinnerTable = dinner, 
                       finalPartyLocation = finalPartyLocation, 
                       dinnerTime = dinnerTime, 
                       travelMode ='simple', 
                       shuffleTeams = False,
-                      padSize = 9,
+                      padSize = 24,
                       tableAssigner = a3cAgent, 
                       envMaker = dinner_simple_run.dinnerMaker, 
                       netMaker = dinner_simple_run.netMaker, 
-                      paramFile= 'C:/users/markus_2/Documents/Nerding/python/a3c/test/dinner_simple/test_fullState_valid_meetScore_9Teams_9pad_normRange20_conv16_fc64/35000/net-0001.params',
-                      symbolFile = 'C:/users/markus_2/Documents/Nerding/python/a3c/test/dinner_simple/test_fullState_valid_meetScore_9Teams_9pad_normRange20_conv16_fc64/35000/net-symbol.json')
+                      paramFile= 'C:/users/markus_2/Documents/Nerding/python/a3c/test/dinner_simple/v2_24teams_pad24_discount01/final/net-0001.params',
+                      symbolFile = 'C:/users/markus_2/Documents/Nerding/python/a3c/test/dinner_simple/v2_24teams_pad24_discount01/final/net-symbol.json')
 
 
 test = myEvent.assign(repCourseAssign = 0, 
@@ -67,8 +67,9 @@ print(myEvent.tableAssigner.invalidList)
 
 agent = a3cAgent(envMaker = dinner_simple_run.dinnerMaker, 
                  netMaker = dinner_simple_run.netMaker, 
-                 paramFile= 'C:/users/markus_2/Documents/Nerding/python/a3c/test/dinner_simple/test_fullState_valid_meetScore_9Teams_9pad_normRange20_conv16_fc64/35000/net-0001.params',
-                 symbolFile = 'C:/users/markus_2/Documents/Nerding/python/a3c/test/dinner_simple/test_fullState_valid_meetScore_9Teams_9pad_normRange20_conv16_fc64/35000/net-symbol.json')
+                 paramFile= 'C:/users/markus_2/Documents/Nerding/python/a3c/test/dinner_simple/v2_24teams_pad24_discount01/final/net-0001.params',
+                 symbolFile = 'C:/users/markus_2/Documents/Nerding/python/a3c/test/dinner_simple/v2_24teams_pad24_discount01/final/net-symbol.json')
+
 
 agent.reset()
 print(agent.env.getNetState().sum())
@@ -76,7 +77,7 @@ i = 1
 while not agent.env.isDone():
     agent._act()
     i+=1
-print agent.invalidList
+print(agent.invalidList)
 
 agent.reset()
 print(agent.env.getNetState().sum())

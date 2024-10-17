@@ -6,11 +6,11 @@ from src.state import state
 from src.randomAgent import randomAgent
 import pdb
 
-excel_file = pd.ExcelFile('dinnerTestAssigned.xlsx')
+excel_file = pd.ExcelFile('test.xls')
 #finalDinnerLocation=xl.sheet_names[0]
 dinner = pd.read_excel(excel_file)
 
-dinnerTime = datetime(2018, 07, 01, 20)
+dinnerTime = datetime(2018, 7, 1, 20)
 
 myState = state(data = dinner, dinnerTime = dinnerTime)
 

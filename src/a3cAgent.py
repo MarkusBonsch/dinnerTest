@@ -70,6 +70,13 @@ class a3cAgent:
         if(not action in validActions):
             self.invalidCounter += 1
             self.invalidList.append(self.stepCounter)
+            print("###############Invalid Action Number " + str(self.stepCounter) + " #######################")
+            print("Action taken " + str(action) )
+            print("Valid actions " + str(validActions) )
+            print("Action scores " + str(actionScore) )
+            print("#############################################################")
+            
+            #make sure to continue nevertheless
             validScore = mx.nd.zeros_like(actionScore)
             validScore[0,validActions] = actionScore[0,validActions]    
             action = int(mx.nd.argmax(validScore, axis = 1).asscalar())

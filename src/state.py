@@ -88,7 +88,7 @@ class state:
         
         ## create empty placeholder array. Default value is -999 for missing
         self.state = (np.zeros(shape = (self.padSize, 
-                                          1 ## 0 for team status: 1 for active team, 0 for rescue team, -1 for padded team
+                                          1 ## 0 for team status: 1 for real team, 0 for rescue team, -1 for padded team
                                         + self.padSize ## 1 for distance from home location to all locations
                                         + 3 ## 1+padSize free seats for the three courses
                                         + self.padSize ## 1+padSize+3: guest at table 1:n for starter
@@ -235,14 +235,14 @@ class state:
                 raise ValueError("Internal error. One team sits at multiple tables")
             locations[matches[0]] = matches[1]
         self.currentLocations = locations
-        self.state[:, 1+5*self.padSize + 17] = locations
+        self.state[:, 1+5*self.padSize + 18] = locations
             
     def __updateActiveCourse(self):
         """
         Determines, for which course the next team will be seated.
         Returns:
             no return. The internal variable self.active course is updated as follows:
-            an integer, giving the course or 
+            an integer, giving the course (3 for starter, 2 for main course, 1 for desert) or 
             np.nan in case nothing needs to be done anymore
         """
         ## checks, for which course there are free seats left and people that need seating
@@ -266,7 +266,7 @@ class state:
             Integer with the team number. np.nan if all teams are seated for all courses
         """
         ## reset active team column of state variable
-        self.state[:, 1+5*self.padSize+18] = 0
+        self.state[:, 1+5*self.padSize+17] = 0
         
         if(np.isnan(self.activeCourse)):
             self.activeTeam = np.nan
@@ -283,7 +283,7 @@ class state:
                 ## random team from candidates
                 self.activeTeam = np.random.choice(candidates)
             
-            self.state[self.activeTeam, 1+5*self.padSize+18] = 1
+            self.state[self.activeTeam, 1+5*self.padSize+17] = 1
             
                 
                 

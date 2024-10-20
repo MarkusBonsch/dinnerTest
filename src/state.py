@@ -726,6 +726,7 @@ class state:
     def __classifyTravelTime(self, travelTime):
         """
         Classification is as follows:
+            travelTime = 0 (home location): 0
             travelTime < 5 min: 1,
             travelTime < 10 min: 2,
             ...,
@@ -741,5 +742,6 @@ class state:
         out = travelTime / 60
         out = out // 5 + 1
         out[out >=10] = 10
+        out[travelTime == 0] = 0
         out[np.isnan(out)] = 10
         return out   

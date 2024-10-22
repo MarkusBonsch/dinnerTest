@@ -105,6 +105,34 @@ class state:
                                         + 1 ## 1+5*padSize + 17 active team
                                         + 1 ## 1+5*padSize + 18 current location
                                         ), dtype = float))
+        
+        ## Create lookup table for correct indexing of the state variable. You should never index state directly. Only use this lookup table.
+        ## Then, changes in the layout just need to be registered here and everything works fine
+        self.stateIndices = {
+            "teamStatus": [0],
+            "distances": list(range(1, self.padSize + 1)),
+            "freeSeats": list(range(1 + self.padSize, 1 + self.padSize + 3)),
+            "guestStarter": list(range(1 + self.padSize + 3, 1 + self.padSize + 3 + self.padSize)),
+            "guestMain": list(range(1 + 2*self.padSize + 3, 1 + 2*self.padSize + 3 + self.padSize)),
+            "guestDesert": list(range(1 + 3*self.padSize + 3, 1 + 3*self.padSize + 3 + self.padSize)),
+            "teamsMet": list(range(1 + 4*self.padSize + 3, 1 + 4*self.padSize + 3 + self.padSize)),
+            "catFree": [1 + 5*self.padSize + 3],
+            "catIntolerant": [1 + 5*self.padSize + 4],
+            "dogFree": [1 + 5*self.padSize + 5],
+            "dogIntolerant": [1 + 5*self.padSize + 6],
+            "animalProductFree": [1 + 5*self.padSize + 7],
+            "animalProductIntolerant": [1 + 5*self.padSize + 8],
+            "meatFree": [1 + 5*self.padSize + 9],
+            "meatIntolerant": [1 + 5*self.padSize + 10],
+            "lactoseFree": [1 + 5*self.padSize + 11],
+            "lactoseIntolerant": [1 + 5*self.padSize + 12],
+            "fishFree": [1 + 5*self.padSize + 13],
+            "fishIntolerant": [1 + 5*self.padSize + 14],
+            "seafoodFree": [1 + 5*self.padSize + 15],
+            "seafoodIntolerant": [1 + 5*self.padSize + 16],
+            "activeTeam": [1 + 5*self.padSize + 17],
+            "currentLocation": [1 + 5*self.padSize + 18]
+        }
 
         ## get correct order of data by team ID
         data = self.data.sort_values('team')
@@ -113,44 +141,44 @@ class state:
         self.rescueMode = False
 
         ## set active team status: padded teams to -1, rescue teams to 0, active teams to 1
-        self.state[:, 0] = -1
-        self.state[0:self.nTeams, 0] = 0 ## all real teams
-        self.state[np.where(~np.isnan(data['assignedCourse']))[0],0] = 1 ## active teams
+        self.state[:, self.stateIndices["teamStatus"][0]] = -1
+        self.state[0:self.nTeams, self.stateIndices["teamStatus"][0]] = 0 ## all real teams
+        self.state[np.where(~np.isnan(data['assignedCourse']))[0],self.stateIndices["teamStatus"][0]] = 1 ## active teams
         ## set distance to all other locations
         ## 10 for padded teams, real values for other teams
-        self.state[:, 1:(1+self.padSize)] = 10
-        self.state[0:self.nTeams, 1:(1+self.nTeams)] = self.travelTime[:,:,0]
+        self.state[:, self.stateIndices["distances"]] = 10
+        self.state[0:self.nTeams, self.stateIndices["distances"]] = self.travelTime[:,:,0]
         ## set free seats (2 for each team for the assigned course, 0 for resuced teams)
         for c in range(1,4):
             hostTeams = np.zeros(self.padSize, dtype = bool)
             hostTeams[np.where(data['assignedCourse'] == c)[0]] = 1
-            self.state[hostTeams, 1+self.padSize+c-1] = 2
+            self.state[hostTeams, self.stateIndices["freeSeats"][0] + c - 1] = 2
         ## set guest at table x for starter, mainCourse, desert
         ## all left at 0, except for assignedCourse, 
         ## where the team sits at their own table (except rescue teams)
         for team in range(0, self.nTeams):
-            if self.state[team,0] != 1:
+            if self.state[team,self.stateIndices["teamStatus"][0]] != 1:
                 continue ## rescue teams and padded teams don't sit at their own table
             assignedCourse = int(data['assignedCourse'][team])
-            self.state[team, 1+assignedCourse*self.padSize+3+team]   = 1
+            self.state[team, self.stateIndices[self.__guestIndexIdentifier(assignedCourse)][0] +team] = 1
         ## set hasMet to all 0s except for team has met itself
         for team in range(0, self.nTeams):
-            self.state[team, 1+4*self.padSize+3+team] = 1
+            self.state[team, self.stateIndices["teamsMet"][0]+team] = 1
         ## set intolerances etc.
-        self.state[0:self.nTeams, 1+5*self.padSize+3]  = data['catFree']
-        self.state[0:self.nTeams, 1+5*self.padSize+4]  = data['catsIntolerant']
-        self.state[0:self.nTeams, 1+5*self.padSize+5] = data['dogFree']
-        self.state[0:self.nTeams, 1+5*self.padSize+6] = data['dogsIntolerant']
-        self.state[0:self.nTeams, 1+5*self.padSize+7] = data['animalProductsIntolerant']
-        self.state[0:self.nTeams, 1+5*self.padSize+8] = data['animalProductsIntolerant']
-        self.state[0:self.nTeams, 1+5*self.padSize+9] = data['meatIntolerant']
-        self.state[0:self.nTeams, 1+5*self.padSize+10] = data['meatIntolerant']
-        self.state[0:self.nTeams, 1+5*self.padSize+11] = data['lactoseIntolerant']
-        self.state[0:self.nTeams, 1+5*self.padSize+12] = data['lactoseIntolerant']
-        self.state[0:self.nTeams, 1+5*self.padSize+13] = data['fishIntolerant']
-        self.state[0:self.nTeams, 1+5*self.padSize+14] = data['fishIntolerant']
-        self.state[0:self.nTeams, 1+5*self.padSize+15] = data['seafoodIntolerant']
-        self.state[0:self.nTeams, 1+5*self.padSize+16] = data['seafoodIntolerant']    
+        self.state[0:self.nTeams, self.stateIndices["catFree"][0]]  = data['catFree']
+        self.state[0:self.nTeams, self.stateIndices["catIntolerant"][0]]  = data['catsIntolerant']
+        self.state[0:self.nTeams, self.stateIndices["dogFree"][0]] = data['dogFree']
+        self.state[0:self.nTeams, self.stateIndices["dogIntolerant"][0]] = data['dogsIntolerant']
+        self.state[0:self.nTeams, self.stateIndices["animalProductFree"][0]] = data['animalProductsIntolerant']
+        self.state[0:self.nTeams, self.stateIndices["animalProductIntolerant"][0]] = data['animalProductsIntolerant']
+        self.state[0:self.nTeams, self.stateIndices["meatFree"][0]] = data['meatIntolerant']
+        self.state[0:self.nTeams, self.stateIndices["meatIntolerant"][0]] = data['meatIntolerant']
+        self.state[0:self.nTeams, self.stateIndices["lactoseFree"][0]] = data['lactoseIntolerant']
+        self.state[0:self.nTeams, self.stateIndices["lactoseIntolerant"][0]] = data['lactoseIntolerant']
+        self.state[0:self.nTeams, self.stateIndices["fishFree"][0]] = data['fishIntolerant']
+        self.state[0:self.nTeams, self.stateIndices["fishIntolerant"][0]] = data['fishIntolerant']
+        self.state[0:self.nTeams, self.stateIndices["seafoodFree"][0]] = data['seafoodIntolerant']
+        self.state[0:self.nTeams, self.stateIndices["seafoodIntolerant"][0]] = data['seafoodIntolerant']    
 
         ## update other internal variables
         self.__updateActiveCourse()
@@ -172,13 +200,13 @@ class state:
         ## get correct order of data by team ID
         data = self.data.sort_values('team')
         ## set rescue tables to active, leave padded Tables at -1
-        self.state[np.where(self.state[:,0] == 0)[0],0] = 1
+        self.state[np.where(self.state[:,self.stateIndices["teamStatus"][0]] == 0)[0],self.stateIndices["teamStatus"][0]] = 1
         ## set free seats for rescue teams to 1 for the assigned course
         for c in range(1,4):
             hostTeams = np.zeros(self.padSize, dtype = bool)
             hostTeams[np.where(np.logical_and(data['assignedCourse'] == c,
                                               data['rescueTable'] == 1))] = 1
-            self.state[hostTeams, 1+self.padSize+c-1] = 1
+            self.state[hostTeams, self.stateIndices["freeSeats"][0]+c-1] = 1
         ## now update everything else
         self.rescueMode = True
         self.__updateActiveCourse()
@@ -228,35 +256,34 @@ class state:
         if not self.isDone():
             currentCourse = self.activeCourse
         else:
-            currentCourse = 1 ## everything is done, so the desert is the last assigned course
+            currentCourse = 3 ## everything is done, so the desert is the last assigned course
         for c in range(1,currentCourse+1):
-            matches = np.where(self.state[:,(1+c*self.padSize+3):(1+(c+1)*self.padSize+3)]==1)
+            matches = np.where(self.state[:,self.stateIndices[self.__guestIndexIdentifier(c)]]==1)
             if len(matches[0]) > self.nTeams:
                 raise ValueError("Internal error. One team sits at multiple tables")
             locations[matches[0]] = matches[1]
         self.currentLocations = locations
-        self.state[:, 1+5*self.padSize + 18] = locations
+        self.state[:, self.stateIndices["currentLocation"][0]] = locations
             
     def __updateActiveCourse(self):
         """
         Determines, for which course the next team will be seated.
         Returns:
             no return. The internal variable self.active course is updated as follows:
-            an integer, giving the course (3 for starter, 2 for main course, 1 for desert) or 
+            an integer, giving the course (1 for starter, 2 for main course, 3 for desert) or 
             np.nan in case nothing needs to be done anymore
         """
         ## checks, for which course there are free seats left and people that need seating
         self.activeCourse = np.nan
         for c in reversed(range(1,4)):
+
             ## going backwards through the courses to determine the first one with need
-            freeSeatCourse = self.state[:, 1+self.padSize-1+c].sum() > 0
+            freeSeatCourse = self.state[:, self.stateIndices["freeSeats"][0]-1+c].sum() > 0
             hasNeedCourse = np.any(np.logical_and(
-                                     np.amax(self.state[:,(1+c*self.padSize+3):(1+(c+1)*self.padSize+3)], axis=1)==0,
-                                     self.state[:,0] == 1))
+                                     np.amax(self.state[:,self.stateIndices[self.__guestIndexIdentifier(c)]], axis=1)==0,
+                                     self.state[:,self.stateIndices["teamStatus"][0]] == 1))
             if freeSeatCourse & hasNeedCourse:
                 self.activeCourse = c
-                break
-
     
     def __updateActiveTeam(self):
         """
@@ -266,7 +293,7 @@ class state:
             Integer with the team number. np.nan if all teams are seated for all courses
         """
         ## reset active team column of state variable
-        self.state[:, 1+5*self.padSize+17] = 0
+        self.state[:, self.stateIndices["activeTeam"][0]] = 0
         
         if(np.isnan(self.activeCourse)):
             self.activeTeam = np.nan
@@ -274,8 +301,8 @@ class state:
             ## candidates are all teams that are seated at team -999, i.e. not seated yet and is no rescue team
             candidates = np.where(
                                 np.logical_and(
-                                        np.amax(self.state[:,(1+self.activeCourse*self.padSize+3):(1+(self.activeCourse+1)*self.padSize+3)], axis=1)==0,
-                                        self.state[:,0] == 1))[0]
+                                        np.amax(self.state[:,self.stateIndices[self.__guestIndexIdentifier(self.activeCourse)]], axis=1)==0,
+                                        self.state[:,self.stateIndices["teamStatus"][0]] == 1))[0]
             if not self.shuffleTeams:
                 ## first candidate
                 self.activeTeam = candidates[0]
@@ -283,7 +310,7 @@ class state:
                 ## random team from candidates
                 self.activeTeam = np.random.choice(candidates)
             
-            self.state[self.activeTeam, 1+5*self.padSize+17] = 1
+            self.state[self.activeTeam, self.stateIndices["activeTeam"][0]] = 1
             
                 
                 
@@ -315,7 +342,7 @@ class state:
         """
         self.validActions = np.zeros((self.padSize,))
         if not self.isDone():
-            self.validActions[self.state[:,1+self.padSize-1+self.activeCourse] > 0] = 1
+            self.validActions[self.state[:,self.stateIndices["freeSeats"][0]-1+self.activeCourse] > 0] = 1
             
     def getValidActions(self):
         """ 
@@ -341,32 +368,31 @@ class state:
             where all alphas are positive weights.
         """
         
-        
         ## calculate reward
         self.rewards =  (  self.alphaMeet    * self.getNewPersonsMet()
                          - self.alphaInvalid * (1 - self.validActions)
                          - self.alphaDist    * self.__getNewDistances()
                          - (self.alphaCat     
-                            * np.logical_and(self.state[self.activeTeam, 1+5*self.padSize+4].astype('bool'),
-                                             np.logical_not(self.state[:, 1+5*self.padSize+3].astype('bool'))))
+                            * np.logical_and(self.state[self.activeTeam, self.stateIndices["catIntolerant"][0]].astype('bool'),
+                                             np.logical_not(self.state[:, self.stateIndices["catFree"][0]].astype('bool'))))
                          - (self.alphaDog     
-                            * np.logical_and(self.state[self.activeTeam, 1+5*self.padSize+6].astype('bool'),
-                                             np.logical_not(self.state[:, 1+5*self.padSize+5].astype('bool'))))
+                            * np.logical_and(self.state[self.activeTeam, self.stateIndices["dogIntolerant"][0]].astype('bool'),
+                                             np.logical_not(self.state[:, self.stateIndices["dogFree"][0]].astype('bool'))))
                          - (self.alphaAnimalProduct
-                            * np.logical_and(self.state[self.activeTeam, 1+5*self.padSize+8].astype('bool'),
-                                             np.logical_not(self.state[:, 1+5*self.padSize+7].astype('bool'))))
+                            * np.logical_and(self.state[self.activeTeam, self.stateIndices["animalProductIntolerant"][0]].astype('bool'),
+                                             np.logical_not(self.state[:, self.stateIndices["animalProductFree"][0]].astype('bool'))))
                          - (self.alphaMeat
-                            * np.logical_and(self.state[self.activeTeam, 1+5*self.padSize+10].astype('bool'),
-                                             np.logical_not(self.state[:, 1+5*self.padSize+9].astype('bool'))))
+                            * np.logical_and(self.state[self.activeTeam, self.stateIndices["meatIntolerant"][0]].astype('bool'),
+                                             np.logical_not(self.state[:, self.stateIndices["meatFree"][0]].astype('bool'))))
                          - (self.alphaLactose
-                            * np.logical_and(self.state[self.activeTeam, 1+5*self.padSize+12].astype('bool'),
-                                             np.logical_not(self.state[:, 1+5*self.padSize+11].astype('bool'))))
+                            * np.logical_and(self.state[self.activeTeam, self.stateIndices["lactoseIntolerant"][0]].astype('bool'),
+                                             np.logical_not(self.state[:, self.stateIndices["lactoseFree"][0]].astype('bool'))))
                          - (self.alphaFish
-                            * np.logical_and(self.state[self.activeTeam, 1+5*self.padSize+14].astype('bool'),
-                                             np.logical_not(self.state[:, 1+5*self.padSize+13].astype('bool'))))
+                            * np.logical_and(self.state[self.activeTeam, self.stateIndices["fishIntolerant"][0]].astype('bool'),
+                                             np.logical_not(self.state[:, self.stateIndices["fishFree"][0]].astype('bool'))))
                          - (self.alphaSeafood
-                            * np.logical_and(self.state[self.activeTeam, 1+5*self.padSize+16].astype('bool'),
-                                             np.logical_not(self.state[:, 1+5*self.padSize+15].astype('bool'))))
+                            * np.logical_and(self.state[self.activeTeam, self.stateIndices["seafoodIntolerant"][0]].astype('bool'),
+                                             np.logical_not(self.state[:, self.stateIndices["seafoodFree"][0]].astype('bool'))))
                          )
         if self.isDone():
             self.rewards = 0 * self.rewards
@@ -400,16 +426,16 @@ class state:
             
         ## update the relevant entries of the self.state variable
         # where the active team is guest for the active course
-        self.state[self.activeTeam, 1+self.activeCourse*self.padSize+3+action] = 1
+        self.state[self.activeTeam, self.stateIndices[self.__guestIndexIdentifier(self.activeCourse)][0]+action] = 1
         # number of free seats for the action team
-        self.state[action, 1+self.padSize-1+self.activeCourse] -=1
-        if self.state[action, 1+self.padSize-1+self.activeCourse] < 0:
+        self.state[action, self.stateIndices["freeSeats"][0] - 1 + self.activeCourse] -=1
+        if self.state[action, self.stateIndices["freeSeats"][0] - 1 + self.activeCourse] < 0:
             raise ValueError("Internal error: negative number of free seats")
         # remember that active team has met action team and all teams that are already
         # at the action table and vice versa.
-        sittingTeams = np.where(self.state[:, 1+self.activeCourse * self.padSize + 3 + action] > 0)[0]
-        self.state[self.activeTeam, 1+4*self.padSize+3+sittingTeams] = 1
-        self.state[sittingTeams, 1+4*self.padSize+3+self.activeTeam] = 1
+        sittingTeams = np.where(self.state[:, self.stateIndices[self.__guestIndexIdentifier(self.activeCourse)][0] + action] > 0)[0]
+        self.state[self.activeTeam, self.stateIndices["teamsMet"][0]+sittingTeams] = 1
+        self.state[sittingTeams, self.stateIndices["teamsMet"][0]+self.activeTeam] = 1
         # update xxx'free' if a table becomes e.g. meatFree 
         # because activeTeam is meat intolerant.
         # animalProducts
@@ -745,3 +771,15 @@ class state:
         out[travelTime == 0] = 0
         out[np.isnan(out)] = 10
         return out   
+
+    def __guestIndexIdentifier(self, course):
+        ## takes the course integer (1 for starter, 2 for main, 3 for desert)
+        ## and returns the identifier for lookup in the stateIndices, i.e. "guestStarter", "guestMain", "guestDesert"
+        indexIdentifier = ""
+        if course == 3:
+            indexIdentifier = "guestDesert"
+        elif course == 2:
+            indexIdentifier = "guestMain"
+        elif course == 1:
+            indexIdentifier = "guestStarter"
+        return indexIdentifier

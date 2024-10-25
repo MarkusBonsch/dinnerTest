@@ -421,7 +421,7 @@ class state:
         if action >= len(self.validActions):
             raise   ValueError("invalid action: " + str(action))
         if not self.validActions[action]:
-            pdb.set_trace()
+            #pdb.set_trace()
             raise   ValueError("invalid action: " + str(action))
             
         ## update the relevant entries of the self.state variable
@@ -439,20 +439,21 @@ class state:
         # update xxx'free' if a table becomes e.g. meatFree 
         # because activeTeam is meat intolerant.
         # animalProducts
-        if self.state[self.activeTeam,1+5*self.padSize+8] > 0:
-            self.state[action, 1+5*self.padSize+7] = 1
+        
+        if self.state[self.activeTeam,self.stateIndices["animalProductIntolerant"][0]] > 0:
+            self.state[action, self.stateIndices["animalProductFree"][0]] = 1
         # meat
-        if self.state[self.activeTeam,1+5*self.padSize+10] > 0:
-            self.state[action, 1+5*self.padSize+9] = 1
+        if self.state[self.activeTeam,self.stateIndices["meatIntolerant"][0]] > 0:
+            self.state[action, self.stateIndices["meatFree"][0]] = 1
         # lactose
-        if self.state[self.activeTeam,1+5*self.padSize+12] > 0:
-            self.state[action, 1+5*self.padSize+11] = 1
+        if self.state[self.activeTeam,self.stateIndices["lactoseIntolerant"][0]] > 0:
+            self.state[action, self.stateIndices["lactoseFree"][0]] = 1
         # fish
-        if self.state[self.activeTeam,1+5*self.padSize+14] > 0:
-            self.state[action, 1+5*self.padSize+13] = 1
+        if self.state[self.activeTeam,self.stateIndices["fishIntolerant"][0]] > 0:
+            self.state[action, self.stateIndices["fishFree"][0]] = 1
         # seafood
-        if self.state[self.activeTeam,1+5*self.padSize+16] > 0:
-            self.state[action, 1+5*self.padSize+15] = 1   
+        if self.state[self.activeTeam,self.stateIndices["seafoodIntolerant"][0]] > 0:
+            self.state[action, self.stateIndices["seafoodFree"][0]] = 1   
         ## update other internal variables (important: after state)
         self.__updateActiveCourse()
         self.__updateActiveTeam()
@@ -488,7 +489,7 @@ class state:
                 1. 1d array with nTeams entries giving the number of persons met
                 2. int giving the total number of persons met
         """
-        teamMet = self.state[0:self.nTeams, (1+4*self.padSize+3):(1+5*self.padSize+3)].sum(axis=1)
+        teamMet = self.state[0:self.nTeams, self.stateIndices["teamsMet"]].sum(axis=1)
         return (teamMet, teamMet.sum())
     
     def getDistanceScore(self):
@@ -505,8 +506,9 @@ class state:
         tmp = np.empty((self.nTeams, 4))
         tmp[:,:] = -999
         tmp[:,0] = np.arange(self.nTeams) ## starting location is at home
+        #pdb.set_trace()
         for c in range(1,4):
-            thisLoc = np.where(self.state[:,(1+c*self.padSize+3):(1+(c+1)*self.padSize+3)] == 1)
+            thisLoc = np.where(self.state[:,self.stateIndices[self.__guestIndexIdentifier(c)]] == 1)
             tmp[thisLoc[0],c] = thisLoc[1]
         tmp = tmp.astype('int') ## for using as index
         ## get distance from place at course  to place at course c+1 for team t
@@ -515,7 +517,7 @@ class state:
                 continue ## this team hasn't been seated properly. LUse default distance
             teamDist[t] = 0
             for c in range(0,3):
-                teamDist[t] += self.state[tmp[t,c], 1+tmp[t,c+1]]
+                teamDist[t] += self.state[tmp[t,c], self.stateIndices["distances"][0]+tmp[t,c+1]]
         return (teamDist, teamDist.sum())
             
     def getMissingTeamScore(self):
@@ -526,9 +528,11 @@ class state:
                 1. 1d array with nTeams bool entries telling if the team was properly assigned for each course
                 2. int giving the total number of teams that were not properly assigned.
         """
-        badTeamFlag = self.state[0:self.nTeams, (1+self.padSize+3):(1+4*self.padSize+3)].sum(axis = 1) < 3
+        seatingIndices = self.stateIndices["guestStarter"]+self.stateIndices["guestMain"]+self.stateIndices["guestDesert"]
+        badTeamFlag = self.state[0:self.nTeams, seatingIndices].sum(axis = 1) < 3
         return (badTeamFlag, badTeamFlag.astype('int').sum())
-        
+
+
     def getMissedIntoleranceScore(self):
         """
         Calculates how many intolerances have been violated.
@@ -538,31 +542,34 @@ class state:
                    have been violated for each team
                 2. int giving the total number of missed intolerances
         """
+        ## array containing the information where each team is seated for each course
         item1  = np.empty((self.nTeams, 3))
         item1[:,:] = np.nan
         for c in range(1,4):
-            matches = np.where(self.state[:,(1+c*self.padSize+3):(1+(c+1)*self.padSize+3)]==1)
+            matches = np.where(self.state[:,self.stateIndices[self.__guestIndexIdentifier(c)]]==1)
             item1[matches[0],c-1] = matches[1]
         item1 = pd.DataFrame(item1)
+        ## get a list with all possible intolerance classes
+        intoleranceClasses = ["cat", "dog", "animalProduct", "meat", "lactose", "fish", "seafood"]
+        ## placeholder array for the number of intolerances that the hosts team are not free of
         missedIntolerances = np.zeros((self.nTeams,))
         for t in range(0,self.nTeams):
             hosts = item1.iloc[t].to_numpy()
             hosts = hosts[~np.isnan(hosts)]
-            intoleranceIdx = np.where(self.state[t, [1+5*self.padSize+4,
-                                                     1+5*self.padSize+6,
-                                                     1+5*self.padSize+8,
-                                                     1+5*self.padSize+10,
-                                                     1+5*self.padSize+12,
-                                                     1+5*self.padSize+14,
-                                                     1+5*self.padSize+16
-                                                     ]] > 0)[0]
-            if not len(intoleranceIdx):
-                continue
-            ## get the info if the hosts are free on intolerance classes
-            freeIdx = 1+5*self.padSize+3+2*intoleranceIdx
-            freeNess = (self.state[hosts.astype('int')[:,None], freeIdx]## weird indexing, see https://stackoverflow.com/questions/22927181/selecting-specific-rows-and-columns-from-numpy-array
+            for i in intoleranceClasses:
+                ## get the indices of the intolerance entry
+                iIntolerantIdx = self.stateIndices[i+"Intolerant"][0]
+                ## get the indices of the "free" entry
+                iFreeIdx = self.stateIndices[i+"Free"][0]
+                ## check whether the team t is intolerant on class i
+                isIntolerant = self.state[t, iIntolerantIdx] > 0
+                if not isIntolerant:
+                    continue
+                #pdb.set_trace()
+                ## get the info if the 3 hosts are free on intolerance classes. Integer between 0 and 3. 0 if all hosts are free, 3 if all hosts are not free
+                freeNess = (self.state[hosts.astype('int'), iFreeIdx]
                        .sum(axis=0))
-            missedIntolerances[t] = (3-freeNess).sum()
+                missedIntolerances[t] += (3-freeNess)
         return (missedIntolerances, missedIntolerances.sum())
         
     def getScore(self):
@@ -606,12 +613,12 @@ class state:
         """
         if not self.isDone():
             raise ValueError('Export only possible on finished state')
-        if np.any(self.state[:,0] == 0):
+        if np.any(self.state[:,self.stateIndices["teamStatus"][0]] == 0):
             raise ValueError('Export only possible if rescue Teams have been assigned')
         item1  = np.empty((self.nTeams, 3))
         item1[:,:] = np.nan
         for c in range(1,4):
-            matches = np.where(self.state[:,(1+c*self.padSize+3):(1+(c+1)*self.padSize+3)]==1)
+            matches = np.where(self.state[:,self.stateIndices[self.__guestIndexIdentifier(c)]]==1)
             item1[matches[0],c-1] = matches[1]
         item1 = pd.DataFrame(item1)
         
@@ -632,11 +639,15 @@ class state:
         item3['teamMissing'] = self.getMissingTeamScore()[0]
             
         nForcedFree = np.zeros((self.nTeams,))
-        for i in range(0,5):
-            ## loop over 5 intolerances. Excluding cat and dog 
-            ## because you can't force cat and dog free 
-            nForcedFree += np.logical_and(self.state[0:self.nTeams, 1+5*self.padSize+7+2*i].astype('bool'),
-                                          self.state[0:self.nTeams, 1+5*self.padSize+8+2*i].astype('bool') == False)
+        # list with intolerance Classe excluding dog and cat because you cant force dog and cat free
+        intoleranceClasses = ["animalProduct", "meat", "lactose", "fish", "seafood"]
+        for i in intoleranceClasses:
+            ## get the indices of the intolerance entry
+            iIntolerantIdx = self.stateIndices[i+"Intolerant"][0]
+            ## get the indices of the "free" entry
+            iFreeIdx = self.stateIndices[i+"Free"][0]
+            nForcedFree += np.logical_and(self.state[0:self.nTeams, iFreeIdx].astype('bool'),
+                                          self.state[0:self.nTeams, iIntolerantIdx].astype('bool') == False)
         item3['nForcedFree'] = nForcedFree
         
         item4 = {}
@@ -677,23 +688,22 @@ class state:
         Determines, how many new persons would be met when seating the activePerson
         at all possible tables.
         Returns: 
-            1d array of lenth padSize with the number of new people met when seating the active person
+            1d array of length padSize with the number of new people met when seating the active person
             to the corresponding team. 0 if team is not a valid action.
         """
-        ## just fo code brevity
+        ## just for code brevity
         nT = self.padSize
         aC = self.activeCourse
+        acGuestIndices = self.stateIndices[self.__guestIndexIdentifier(aC)]
         out = np.zeros((nT,))
         for  action in np.where(self.validActions == 1)[0]:
             ## start calculation by seeing who is already at the table
-            newMet = np.logical_and(np.argmax(
-                                      self.state[:,(1+aC*nT+3):(1+(aC+1)*nT+3)],
-                                      axis = 1) == action,
-                                    np.amax(
-                                      self.state[:,(1+aC*nT+3):(1+(aC+1)*nT+3)],
-                                      axis = 1) == 1)
+            # pdb.set_trace()
+            # not sure anymore, how this logic works here. Seems wrong, but only affects reward calculation
+            newMet = np.logical_and(np.argmax(self.state[:,acGuestIndices],axis = 1) == action, # complicated way to determine the host team
+                                    np.amax(self.state[:,acGuestIndices],axis = 1) == 1)
             ## now eliminate those teams that have been met before by the active team
-            notYetMet = self.state[self.activeTeam, (1+4*nT+3): (1+5*nT+3)] == 0
+            notYetMet = self.state[self.activeTeam, self.stateIndices["teamsMet"]] == 0
             newMet = np.logical_and(newMet,notYetMet)
             newMet = newMet.sum()
             out[action] = newMet
@@ -708,7 +718,7 @@ class state:
             each table (team)
         """
         fromLoc = int(self.currentLocations[self.activeTeam])
-        out = self.state[(fromLoc), 1:1+self.padSize]
+        out = self.state[(fromLoc), self.stateIndices["distances"]]
         return out
         
     def __getTravelTime(self, data, dinnerTime, travelModes = ['transit', 'bicycling', 'driving']):

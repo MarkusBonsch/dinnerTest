@@ -103,7 +103,7 @@ class state:
                                         + 2 ## fish free and fish intolerant
                                         + 2 ## seafaood free and seafood intolerant
                                         + 1 ## 1+5*padSize + 17 active team
-                                        + 1 ## 1+5*padSize + 18 current location
+                                        + self.padSize ## 1+5*padSize + 18 current location
                                         ), dtype = float))
         
         ## Create lookup table for correct indexing of the state variable. You should never index state directly. Only use this lookup table.
@@ -131,7 +131,7 @@ class state:
             "seafoodFree": [1 + 5*self.padSize + 15],
             "seafoodIntolerant": [1 + 5*self.padSize + 16],
             "activeTeam": [1 + 5*self.padSize + 17],
-            "currentLocation": [1 + 5*self.padSize + 18]
+            "currentLocation": list(range(1 + 5*self.padSize + 18, 1 + 5*self.padSize + 18 + self.padSize))
         }
 
         ## get correct order of data by team ID
@@ -263,8 +263,9 @@ class state:
                 raise ValueError("Internal error. One team sits at multiple tables")
             locations[matches[0]] = matches[1]
         self.currentLocations = locations
-        self.state[:, self.stateIndices["currentLocation"][0]] = locations
-            
+        locations_oneHot = np.eye(self.padSize)[locations.astype(int),:]
+        self.state[:, self.stateIndices["currentLocation"]] = locations_oneHot
+
     def __updateActiveCourse(self):
         """
         Determines, for which course the next team will be seated.

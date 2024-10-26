@@ -367,7 +367,7 @@ class state:
                                - alphaSeafood * (guest seafoodIntolerant AND table not seafood free)
             where all alphas are positive weights.
         """
-        
+
         ## calculate reward
         self.rewards =  (  self.alphaMeet    * self.getNewPersonsMet()
                          - self.alphaInvalid * (1 - self.validActions)
@@ -694,21 +694,22 @@ class state:
         ## just for code brevity
         nT = self.padSize
         aC = self.activeCourse
-        acGuestIndices = self.stateIndices[self.__guestIndexIdentifier(aC)]
         out = np.zeros((nT,))
         for  action in np.where(self.validActions == 1)[0]:
             ## start calculation by seeing who is already at the table
             # pdb.set_trace()
-            # not sure anymore, how this logic works here. Seems wrong, but only affects reward calculation
-            newMet = np.logical_and(np.argmax(self.state[:,acGuestIndices],axis = 1) == action, # complicated way to determine the host team
-                                    np.amax(self.state[:,acGuestIndices],axis = 1) == 1)
-            ## now eliminate those teams that have been met before by the active team
+            tableOfInterest = action # because action just tells, where to place the active team
+            # getting the column idx of the table of interest for the current course to determine who is already sitting there
+            tableOfInterestIdx = self.stateIndices[self.__guestIndexIdentifier(aC)][0] + tableOfInterest 
+            # determine who is already sitting there
+            alreadySitting = self.state[:, tableOfInterestIdx] == 1
+            ## now determine which teams the active team has not yet met
             notYetMet = self.state[self.activeTeam, self.stateIndices["teamsMet"]] == 0
-            newMet = np.logical_and(newMet,notYetMet)
+            newMet = np.logical_and(alreadySitting,notYetMet)
             newMet = newMet.sum()
             out[action] = newMet
         return(out)
-        
+    
     def __getNewDistances(self):
         """
         Determines the distance class from the current location of the active team

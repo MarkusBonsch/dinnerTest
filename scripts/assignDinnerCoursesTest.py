@@ -1,14 +1,15 @@
 import pandas as pd
 import sys
 sys.path.insert(0,'')
-import src.assignDinnerCourses as adc
-
-import src.validation as valid
-import cProfile as cP
-from timeit import default_timer
 sys.path.insert(0,'C:/users/markus_2/Documents/Nerding/python/dinnerTest')
 sys.path.insert(0,'C:/users/markus_2/Documents/Nerding/python/dinnerTest/src')
-import src.randomDinnerGenerator as rdg
+import assignDinnerCourses as adc
+
+import validation as valid
+import cProfile as cP
+from timeit import default_timer
+
+import randomDinnerGenerator as rdg
 
 for i in range(10):
     Dinner1 = rdg.randomDinnerGenerator(numberOfTeams=12
@@ -30,6 +31,6 @@ for i in range(10):
                                     ,verbose=0
                                     ,checkValidity = False)
     dinner,finalPartyLocation=Dinner1.generateDinner()
-    courseAssigner = adc.assignDinnerCourses(dinnerTable = dinner, finalPartyLocation = finalPartyLocation)
+    courseAssigner = adc.assignDinnerCourses(dinnerTable = dinner)
     dinnerAssigned = courseAssigner.assignDinnerCourses(random = False)
     print(dinnerAssigned["assignedCourse"].value_counts())

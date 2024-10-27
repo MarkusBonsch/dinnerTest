@@ -30,12 +30,13 @@ class state:
         
     """
     
-    def __init__(self, data, dinnerTime, travelMode = 'transit', shuffleTeams = False, padSize = 50):
+    def __init__(self, data, finalPartyLocation, dinnerTime, travelMode = 'transit', shuffleTeams = False, padSize = 50):
         """ 
         Do some time intensive preProcessing and store the results
         Args:
-            data (list of dicts): one entry per team with all the relevant 
-                                  information.
+            data (pandas data.frame): one row per team with all the relevant 
+                                      information.
+            finalPartyLocation (pandas data.frame): one row with "lng" and "lat" of final party location
             dinnerTime (datetime.datetime): time of the dinner
             travelMode (string): either 'simple' for just shortest distance at 10km/h,
                                  or one of the modes documented in See help(googlemaps.distance_matrix).
@@ -71,8 +72,12 @@ class state:
         ## save the shuffle switch
         self.shuffleTeams = shuffleTeams
         ## travel time between locations from google API
-        self.travelTime = self.__classifyTravelTime(
-                self.__getTravelTime(data, dinnerTime, [travelMode]))
+        travelTimes = self.__getTravelTime(data, finalPartyLocation, dinnerTime, [travelMode])
+        # pdb.set_trace()
+        travelTimesTeams = travelTimes[0] # travel distances to other teams
+        travelTimesParty = travelTimes[1] # travel distances to final party location
+        self.travelTime = self.__classifyTravelTime(travelTimesTeams)
+        self.travelTimeParty = self.__classifyTravelTime(travelTimesParty)
         ## bool to determine, whether we are already in the phase of assigning resuced teams
         self.rescueMode = False
         
@@ -90,20 +95,21 @@ class state:
         self.state = (np.zeros(shape = (self.padSize, 
                                           1 ## 0 for team status: 1 for real team, 0 for rescue team, -1 for padded team
                                         + self.padSize ## 1 for distance from home location to all locations
-                                        + 3 ## 1+padSize free seats for the three courses
-                                        + self.padSize ## 1+padSize+3: guest at table 1:n for starter
-                                        + self.padSize ## 1+2*padSize+3: guest at table 1:n for main course
-                                        + self.padSize ## 1+3*padSize+3: guest at table 1:n for desert
-                                        + self.padSize ## 1+4*padSize+3 which teams have been met
-                                        + 2 ## 1+5*padSize + 3 cat free and cat intolerant
+                                        + 1 ## 1+padSize for distance from home location of each team to final party location
+                                        + 3 ## 2+padSize free seats for the three courses
+                                        + self.padSize ## 2+padSize+3: guest at table 1:n for starter
+                                        + self.padSize ## 2+2*padSize+3: guest at table 1:n for main course
+                                        + self.padSize ## 2+3*padSize+3: guest at table 1:n for desert
+                                        + self.padSize ## 2+4*padSize+3 which teams have been met
+                                        + 2 ## 2+5*padSize + 3 cat free and cat intolerant
                                         + 2 ## dog free and dog intolerant
                                         + 2 ## animal product free and animal product intolerant
                                         + 2 ## meat free and meat intolerant
                                         + 2 ## lactose free and lactose intolerant
                                         + 2 ## fish free and fish intolerant
                                         + 2 ## seafaood free and seafood intolerant
-                                        + 1 ## 1+5*padSize + 17 active team
-                                        + self.padSize ## 1+5*padSize + 18 current location
+                                        + 1 ## 2+5*padSize + 17 active team
+                                        + self.padSize ## 2+5*padSize + 18 current location
                                         ), dtype = float))
         
         ## Create lookup table for correct indexing of the state variable. You should never index state directly. Only use this lookup table.
@@ -111,27 +117,28 @@ class state:
         self.stateIndices = {
             "teamStatus": [0],
             "distances": list(range(1, self.padSize + 1)),
-            "freeSeats": list(range(1 + self.padSize, 1 + self.padSize + 3)),
-            "guestStarter": list(range(1 + self.padSize + 3, 1 + self.padSize + 3 + self.padSize)),
-            "guestMain": list(range(1 + 2*self.padSize + 3, 1 + 2*self.padSize + 3 + self.padSize)),
-            "guestDesert": list(range(1 + 3*self.padSize + 3, 1 + 3*self.padSize + 3 + self.padSize)),
-            "teamsMet": list(range(1 + 4*self.padSize + 3, 1 + 4*self.padSize + 3 + self.padSize)),
-            "catFree": [1 + 5*self.padSize + 3],
-            "catIntolerant": [1 + 5*self.padSize + 4],
-            "dogFree": [1 + 5*self.padSize + 5],
-            "dogIntolerant": [1 + 5*self.padSize + 6],
-            "animalProductFree": [1 + 5*self.padSize + 7],
-            "animalProductIntolerant": [1 + 5*self.padSize + 8],
-            "meatFree": [1 + 5*self.padSize + 9],
-            "meatIntolerant": [1 + 5*self.padSize + 10],
-            "lactoseFree": [1 + 5*self.padSize + 11],
-            "lactoseIntolerant": [1 + 5*self.padSize + 12],
-            "fishFree": [1 + 5*self.padSize + 13],
-            "fishIntolerant": [1 + 5*self.padSize + 14],
-            "seafoodFree": [1 + 5*self.padSize + 15],
-            "seafoodIntolerant": [1 + 5*self.padSize + 16],
-            "activeTeam": [1 + 5*self.padSize + 17],
-            "currentLocation": list(range(1 + 5*self.padSize + 18, 1 + 5*self.padSize + 18 + self.padSize))
+            "partyDistances": [1 + self.padSize],
+            "freeSeats": list(range(2 + self.padSize, 2 + self.padSize + 3)),
+            "guestStarter": list(range(2 + self.padSize + 3, 2 + self.padSize + 3 + self.padSize)),
+            "guestMain": list(range(2 + 2*self.padSize + 3, 2 + 2*self.padSize + 3 + self.padSize)),
+            "guestDesert": list(range(2 + 3*self.padSize + 3, 2 + 3*self.padSize + 3 + self.padSize)),
+            "teamsMet": list(range(2 + 4*self.padSize + 3, 2 + 4*self.padSize + 3 + self.padSize)),
+            "catFree": [2 + 5*self.padSize + 3],
+            "catIntolerant": [2 + 5*self.padSize + 4],
+            "dogFree": [2 + 5*self.padSize + 5],
+            "dogIntolerant": [2 + 5*self.padSize + 6],
+            "animalProductFree": [2 + 5*self.padSize + 7],
+            "animalProductIntolerant": [2 + 5*self.padSize + 8],
+            "meatFree": [2 + 5*self.padSize + 9],
+            "meatIntolerant": [2 + 5*self.padSize + 10],
+            "lactoseFree": [2 + 5*self.padSize + 11],
+            "lactoseIntolerant": [2 + 5*self.padSize + 12],
+            "fishFree": [2 + 5*self.padSize + 13],
+            "fishIntolerant": [2 + 5*self.padSize + 14],
+            "seafoodFree": [2 + 5*self.padSize + 15],
+            "seafoodIntolerant": [2 + 5*self.padSize + 16],
+            "activeTeam": [2 + 5*self.padSize + 17],
+            "currentLocation": list(range(2 + 5*self.padSize + 18, 2 + 5*self.padSize + 18 + self.padSize))
         }
 
         ## get correct order of data by team ID
@@ -148,6 +155,10 @@ class state:
         ## 10 for padded teams, real values for other teams
         self.state[:, self.stateIndices["distances"]] = 10
         self.state[0:self.nTeams, self.stateIndices["distances"]] = self.travelTime[:,:,0]
+        ## set distance to final party location
+        ## 10 for padded teams, real values for other teams
+        self.state[:, self.stateIndices["partyDistances"][0]] = 10
+        self.state[0:self.nTeams, self.stateIndices["partyDistances"][0]] = self.travelTimeParty[:,0]
         ## set free seats (2 for each team for the assigned course, 0 for resuced teams)
         for c in range(1,4):
             hostTeams = np.zeros(self.padSize, dtype = bool)
@@ -723,43 +734,58 @@ class state:
         out = self.state[(fromLoc), self.stateIndices["distances"]]
         return out
         
-    def __getTravelTime(self, data, dinnerTime, travelModes = ['transit', 'bicycling', 'driving']):
+    def __getTravelTime(self, data, finalPartyLocation, dinnerTime, travelModes = ['transit', 'bicycling', 'driving']):
         """
         Get travel time from each teams home location to each others teams home
         location. 
         Args:
-            data (list of dicts): one entry per team with keys 'addressLat' and 'addressLng'.
+            data (pandas data.frame): one row per team with columns "addressLng" and "addressLat"
+            finalPartyLocation (pandas data.frame): one row for finalPartyLocation with columns "lng" and "lat"
             dinnerTime (datetime.datetime): time of the dinner.
             travelModes (list): Travel time will be calculated for each of the travelModes
                                  listed here. For valid options, see help(googlemaps.distance_matrix).
                                  An additional valid option is 'simple' which takes the 
                                  distance divided by 10, assuming that you can go 
                                  10 kilometers per hour
-        Returns: A numpy array with three dimensions. dim = (nTeams, nTeams, len(travelModes)). 
-                 The values are travel times in seconds for each pair of locations and travel mode.
-                 Note that the result is symmetrical, i.e. travelTime[a,b, "walking"] = travelTime[b,a, "walking"]
+        Returns: list of 2:
+                 1. A numpy array with three dimensions. dim = (nTeams, nTeams, len(travelModes)). 
+                    The values are travel times in seconds for each pair of locations and travel mode.
+                    Note that the result is symmetrical, i.e. travelTime[a,b, "walking"] = travelTime[b,a, "walking"]
+                 2. A numpy array with two dimensions. dim = (nTeams, len(travelModes))
+                    The values are travel times from each teams home location to final party location
         """
         myGp = gp.geoProcessing()
+        # placeholder for the distances between teams
         distMatrix = np.zeros(shape = (self.nTeams, self.nTeams, len(travelModes)), dtype = float)
+        # placeholder for the distance of each team to final party location
+        distParty = np.zeros(shape = (self.padSize, len(travelModes)), dtype = float)
+        # address of final party location in correct format
+        party = dict(lat = finalPartyLocation.loc[0, 'lat'].item(),
+                     lng = finalPartyLocation.loc[0, 'lng'].item())
         for s in range(0, self.nTeams):
             for e in range(s, self.nTeams):
                 origin = dict(lat = data.loc[s, 'addressLat'].item(),
                               lng = data.loc[s, 'addressLng'].item())
                 destination = dict(lat = data.loc[e, 'addressLat'].item(),
                                    lng = data.loc[e, 'addressLng'].item())
-                ## get the distance from s to e for each travelMode
                 for t in range(0, len(travelModes)):
+                    ## get the distance from s to e for each travelMode
                     distMatrix[s, e, t] = myGp.getTravelTime(origin = origin,
                                               destination = destination,
                                               mode = travelModes[t],
                                               departureTime = dinnerTime) 
+                    ## get the distance from s to party for each travel mode
+                    distParty[s,t] = myGp.getTravelTime(origin = origin,
+                                                        destination = party,
+                                                        mode = travelModes[t],
+                                                        departureTime = dinnerTime) 
                 
         ## fill the reverse entries with the same values
         for s in range(1, self.nTeams):
             for e in range(0, s):
                 distMatrix[s, e, :] = distMatrix[e, s, :]
         
-        return distMatrix
+        return (distMatrix, distParty)
                 
     def __classifyTravelTime(self, travelTime):
         """

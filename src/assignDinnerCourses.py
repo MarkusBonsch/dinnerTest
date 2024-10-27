@@ -17,9 +17,8 @@ import pdb
 
 class assignDinnerCourses:
     
-    def __init__(self, dinnerTable , finalPartyLocation, verbose = False):
+    def __init__(self, dinnerTable , verbose = False):
         self.dinnerTable = dinnerTable
-        self.finalPartyLocation = finalPartyLocation
         self.verbose = verbose
         self.myGp = gp.geoProcessing()
         self.scaleFactors = {'wish': 150, 'neededTable': 200, 'neededRescueTable': 160}

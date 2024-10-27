@@ -28,7 +28,7 @@ class dinnerEvent:
         """
         Args:
             dinnerTable (pandas dataframe): info about all the teams in defined format
-            finalPartyLocation (array): geocoordinates of the final party location
+            finalPartyLocation (pandas data.frame): geocoordinates of the final party location
             dinnerTime (datetime): time of the dinner
             travelMode (string): see state.__init__ documentation for details.
                                  'simple' is safe and easy
@@ -38,9 +38,9 @@ class dinnerEvent:
             tableAssigner (class with a chooseAction method): the logic to assign tables
             **kwargs: additional arguments passed to the tableAssigner
         """
-        self.courseAssigner = assignDinnerCourses(dinnerTable, 
-                                                      finalPartyLocation)
-        self.state = state(dinnerTable, dinnerTime, travelMode, shuffleTeams, padSize)
+        self.finalPartyLocation = finalPartyLocation
+        self.courseAssigner = assignDinnerCourses(dinnerTable)
+        self.state = state(dinnerTable, finalPartyLocation, dinnerTime, travelMode, shuffleTeams, padSize)
         self.tableAssigner = tableAssigner(**kwargs)
         self.validation = validation()
         
@@ -142,7 +142,7 @@ class dinnerEvent:
             ## map with locations and other fancy stuff
             (self.validation
                .plotMapOfAssignedTables(dinnerTable = final[2],
-                                       finalPartyLocation = self.courseAssigner.finalPartyLocation)
+                                       finalPartyLocation = self.finalPartyLocation)
                .plotToFile(os.path.join(outFolder, 'map.html')))
             ## statistics of assignedCourses
             (self.validation

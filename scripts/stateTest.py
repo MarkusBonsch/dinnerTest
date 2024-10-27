@@ -24,7 +24,7 @@ myState.initNormalState()
 myAgent = randomAgent()
 
 i = 1
-while not myState.isDone:
+while not myState.isDone():
     print('activeCourse = ' + str(myState.activeCourse))
     print('activeTeam = ' + str(myState.activeTeam))
     print(i)
@@ -32,24 +32,7 @@ while not myState.isDone:
     action = myAgent.chooseAction(myState, random=False)
     myState.update(action)
     i+=1
-    
-myState.initRescueState()
 
-while not myState.isDone:
-    print 'activeCourse = ' + str(myState.activeCourse)
-    print 'activeTeam = ' + str(myState.activeTeam)
-    print i
-#    pdb.set_trace()
-    if i == 18:
-#        pdb.set_trace()
-        pass
-    if myState.activeTeam == 3:
-#        pdb.set_trace()
-        pass
-    action = myAgent.chooseAction(myState, random=False)
-    myState.update(action)
-    i+=1
-    
     
 #myState.update(2)
 #myState.update(2)

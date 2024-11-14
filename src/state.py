@@ -65,6 +65,7 @@ class state:
             raise ValueError('padSize must be at least the number of teams in the input data.')
         ## save the raw data
         self.data = data
+        # pdb.set_trace()
         ## total number of real teams
         self.nTeams = len(data)
         ## size of the array
@@ -146,7 +147,6 @@ class state:
         
         ## reset rescue mode
         self.rescueMode = False
-
         ## set active team status: padded teams to -1, rescue teams to 0, active teams to 1
         self.state[:, self.stateIndices["teamStatus"][0]] = -1
         self.state[0:self.nTeams, self.stateIndices["teamStatus"][0]] = 0 ## all real teams
@@ -154,11 +154,11 @@ class state:
         ## set distance to all other locations
         ## 10 for padded teams, real values for other teams
         self.state[:, self.stateIndices["distances"]] = 10
-        self.state[0:self.nTeams, self.stateIndices["distances"]] = self.travelTime[:,:,0]
+        self.state[0:self.nTeams, self.stateIndices["distances"][0:self.nTeams]] = self.travelTime[:,:,0]
         ## set distance to final party location
         ## 10 for padded teams, real values for other teams
         self.state[:, self.stateIndices["partyDistances"][0]] = 10
-        self.state[0:self.nTeams, self.stateIndices["partyDistances"][0]] = self.travelTimeParty[:,0]
+        self.state[0:self.nTeams, self.stateIndices["partyDistances"][0]] = self.travelTimeParty[0:self.nTeams,0]
         ## set free seats (2 for each team for the assigned course, 0 for resuced teams)
         for c in range(1,4):
             hostTeams = np.zeros(self.padSize, dtype = bool)

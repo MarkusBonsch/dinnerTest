@@ -17,22 +17,18 @@ class a3cAgent:
     Agent that takes the learned net from an a3c run and assigns tables for a dinner Event.
 
     """
-    def __init__(self, envMaker, netMaker, paramFile, symbolFile, random = False, **kwargs):
+    def __init__(self, envMaker, paramFile, symbolFile, random = False, **kwargs):
         """
         Args:
             envMaker (function): function that returns the environment to be used.
-            netMaker (function): a function that returns the neural net to be used.
-            paramFile (string): the path to the file that contains the trained parameters
-            symbolFile (string): the path to the file that contains the symbol shapes
+            paramFile (string): the path to the file that contains the parameters
+            symbolFile (string): the path to the file that contains the saved net
             random (bool): ignored.
         """
         ## load model
-        params = mx.gluon.nn.SymbolBlock.imports(symbol_file = symbolFile,
-                                                 param_file  = paramFile,
-                                                 input_names = ['data'])
-        self.net = netMaker()
-        self.net.initialize(init = mx.initializer.Xavier(magnitude = 0.1), ctx= mx.cpu())
-        self.net.copyParams(fromNet=params)
+        self.net = mx.gluon.nn.SymbolBlock.imports(symbol_file = symbolFile,
+                                                   param_file  = paramFile,
+                                                   input_names = ['data'])
         self.net.hybridize()
         self.env = envMaker()
         self.reset()
@@ -46,10 +42,11 @@ class a3cAgent:
         self.invalidList = []
         self.env.reset()
         
-    def chooseAction(self, state = None, random = False):
+    def chooseAction(self, state = None, continueOnInvalidAction = True, random = False):
         """
         Args:
             -state (state object): the current state of the dinnerEvent. If none, the state of the internal dinnerObject will be used,
+            - continueOnInvalidAction (bool): if True, invalid actions are ignored and the highest ranked valid action is used.
             -random (bool): ignored
         Returns:
             int:
@@ -76,17 +73,18 @@ class a3cAgent:
             print("Action scores " + str(actionScore) )
             print("#############################################################")
             
-            #make sure to continue nevertheless
-            validScore = mx.nd.zeros_like(actionScore)
-            validScore[0,validActions] = actionScore[0,validActions]    
-            action = int(mx.nd.argmax(validScore, axis = 1).asscalar())
+            if continueOnInvalidAction:
+                #make sure to continue nevertheless
+                validScore = mx.nd.zeros_like(actionScore)
+                validScore[0,validActions] = actionScore[0,validActions]    
+                action = int(mx.nd.argmax(validScore, axis = 1).asscalar())
         self.stepCounter += 1
         return action
 
-    def _act(self):
+    def _act(self, continueOnInvalidAction = True):
         """for internal use only. Will choose an action based on the internal dinnerObject and update the internal dinnerObject
         """
-        a = self.chooseAction()
+        a = self.chooseAction(continueOnInvalidAction = continueOnInvalidAction)
         if a is not None:
             self.env.update(a)
         

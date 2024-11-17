@@ -7,9 +7,10 @@ Created on Sun Dec 20 23:48:17 2020
 """
 
 import sys
+import pandas as pd
 sys.path.insert(0,'C:/users/markus_2/Documents/Nerding/python/dinnerTest/src')
 sys.path.insert(0,'C:/users/markus_2/Documents/Nerding/python/a3c/src')
-sys.path.insert(0,'C:/Users/markus_2/Documents/Nerding/python/a3c/test/dinner_simple/v2_24teams_pad24_discount01')
+sys.path.insert(0,'C:/Users/markus_2/Documents/Nerding/python/a3c/test/dinner_simple/v8_fIS_conv6channels_fc64_9-24teams_pad24_pretrained')
 
 from a3cAgent import a3cAgent
 import dinner_simple_run
@@ -47,9 +48,8 @@ myEvent = dinnerEvent(dinnerTable = dinner,
                       padSize = 24,
                       tableAssigner = a3cAgent, 
                       envMaker = dinner_simple_run.dinnerMaker, 
-                      netMaker = dinner_simple_run.netMaker, 
-                      paramFile= 'C:/users/markus_2/Documents/Nerding/python/a3c/test/dinner_simple/v2_24teams_pad24_discount01/final/net-0001.params',
-                      symbolFile = 'C:/users/markus_2/Documents/Nerding/python/a3c/test/dinner_simple/v2_24teams_pad24_discount01/final/net-symbol.json')
+                      paramFile= 'C:/users/markus_2/Documents/Nerding/python/a3c/test/dinner_simple/v8_fIS_conv6channels_fc64_9-24teams_pad24_pretrained/final/net-0001.params',
+                      symbolFile = 'C:/users/markus_2/Documents/Nerding/python/a3c/test/dinner_simple/v8_fIS_conv6channels_fc64_9-24teams_pad24_pretrained/final/net-symbol.json')
 
 
 test = myEvent.assign(repCourseAssign = 0, 
@@ -67,16 +67,23 @@ print(myEvent.tableAssigner.invalidList)
 
 agent = a3cAgent(envMaker = dinner_simple_run.dinnerMaker, 
                  netMaker = dinner_simple_run.netMaker, 
-                 paramFile= 'C:/users/markus_2/Documents/Nerding/python/a3c/test/dinner_simple/v2_24teams_pad24_discount01/final/net-0001.params',
-                 symbolFile = 'C:/users/markus_2/Documents/Nerding/python/a3c/test/dinner_simple/v2_24teams_pad24_discount01/final/net-symbol.json')
+                 paramFile= 'C:/users/markus_2/Documents/Nerding/python/a3c/test/dinner_simple/v8_fIS_conv6channels_fc64_9-24teams_pad24_pretrained/final/net-0001.params',
+                 symbolFile = 'C:/users/markus_2/Documents/Nerding/python/a3c/test/dinner_simple/v8_fIS_conv6channels_fc64_9-24teams_pad24_pretrained/final/net-symbol.json')
 
 
-agent.reset()
-print(agent.env.getNetState().sum())
-i = 1
-while not agent.env.isDone():
-    agent._act()
-    i+=1
+out = pd.DataFrame(columns=['run', 'nTeams', 'nSteps'])
+for run in range(0,50):
+    agent.reset()
+    nTeams = (agent.env.getRawState()[:,agent.env.getVariableIndices()['teamStatus'][0]]==1).sum()
+    print(nTeams)
+    nSteps = 0
+    while not agent.env.isDone():
+        agent._act(continueOnInvalidAction = False)
+        # print(agent.env.isDone())
+        nSteps +=1
+    out = out.append({'run': run, 'nTeams': nTeams, 'nSteps': nSteps}, ignore_index = True)
+out['success'] = (out['nSteps']/2 == out['nTeams'])
+
 print(agent.invalidList)
 
 agent.reset()

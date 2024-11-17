@@ -29,4 +29,4 @@ myEvent = dinnerEvent(dinnerTable = dinner,
                       dinnerTime=dinnerTime, travelMode='simple', shuffleTeams = False, padSize = 50)
 
 test = myEvent.assign(repCourseAssign = 1, 
-                    repTableAssign = 1, outFolder='testAfter5_intolerances_seed1', overwrite = True)
+                    repTableAssign = 1, outFolder='test', overwrite = True)
